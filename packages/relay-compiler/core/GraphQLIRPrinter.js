@@ -327,6 +327,10 @@ function printLiteral(value: mixed, type: ?GraphQLInputType): string {
     return (
       '[' + value.map(item => printLiteral(item, itemType)).join(', ') + ']'
     );
+  } else if (type instanceof GraphQLList && value != null) {
+    // Not an array, but still a list. Treat as list-of-one as per spec 3.1.7:
+    // http://facebook.github.io/graphql/October2016/#sec-Lists
+    return printLiteral(value, type.ofType);
   } else if (typeof value === 'object' && value != null) {
     const fields = [];
     invariant(
@@ -342,10 +346,6 @@ function printLiteral(value: mixed, type: ?GraphQLInputType): string {
       }
     }
     return '{' + fields.join(', ') + '}';
-  } else if (type instanceof GraphQLList && value != null) {
-    // Not an array, but still a list. Treat as list-of-one as per spec 3.1.7:
-    // http://facebook.github.io/graphql/October2016/#sec-Lists
-    return printLiteral(value, type.ofType);
   } else {
     return JSON.stringify(value);
   }
