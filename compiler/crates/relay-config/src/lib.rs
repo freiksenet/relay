@@ -8,6 +8,7 @@
 #![deny(warnings)]
 #![deny(rust_2018_idioms)]
 #![deny(clippy::all)]
+#![feature(path_file_prefix)]
 
 mod connection_interface;
 mod diagnostic_report_config;

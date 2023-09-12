@@ -118,6 +118,7 @@ A directive which declares that a field implements the connection spec.
 """
 directive @connection(
   key: String!
+  filter: [String]
   filters: [String]
   handler: String
   dynamicKey_UNSTABLE: String

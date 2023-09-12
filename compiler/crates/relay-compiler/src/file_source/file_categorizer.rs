@@ -269,7 +269,7 @@ impl FileCategorizer {
                     Err(Cow::Borrowed("Invalid extension for a generated file."))
                 }
             }
-        } else if is_schema_extension(extension) {
+        } else if is_graphql_extension(extension) {
             if let Some(project_set) = self.schema_file_mapping.get(path) {
                 Ok(FileGroup::Schema {
                     project_set: project_set.clone(),
@@ -279,9 +279,33 @@ impl FileCategorizer {
             } else if let Some(project_set) = self.schema_dir_mapping.find(path) {
                 Ok(FileGroup::Schema { project_set })
             } else {
-                Err(Cow::Borrowed(
-                    "Expected *.graphql/*.gql file to be either a schema or extension.",
-                ))
+                let project_set = self
+                    .source_mapping
+                    .find(path)
+                    .ok_or(Cow::Borrowed("File is not in any source set."))?;
+                if self.in_relative_generated_dir(path) {
+                    if project_set.has_multiple_projects() {
+                        Err(Cow::Owned(format!(
+                            "Overlapping input sources are incompatible with relative generated \
+                            directories. Got file in a relative generated directory with source set {:?}.",
+                            project_set,
+                        )))
+                    } else {
+                        let project_name = project_set.into_iter().next().unwrap();
+                        Ok(FileGroup::Generated { project_name })
+                    }
+                } else {
+                    let is_valid_extension =
+                        self.is_valid_extension_for_project_set(&project_set, extension, path);
+                    if is_valid_extension {
+                        Ok(FileGroup::Source { project_set })
+                    } else {
+                        Err(Cow::Borrowed("Invalid extension for a generated file."))
+                    }
+                }
+                // Err(Cow::Borrowed(
+                // "Expected *.graphql/*.gql file to be either a schema or extension.",
+                // ))
             }
         } else {
             Err(Cow::Borrowed(
@@ -344,7 +368,7 @@ fn is_source_code_extension(extension: &OsStr) -> bool {
     extension == "js" || extension == "jsx" || extension == "ts" || extension == "tsx"
 }
 
-fn is_schema_extension(extension: &OsStr) -> bool {
+fn is_graphql_extension(extension: &OsStr) -> bool {
     extension == "graphql" || extension == "gql"
 }
 
@@ -358,6 +382,7 @@ fn is_valid_source_code_extension(typegen_language: &TypegenLanguage, extension:
         TypegenLanguage::Flow | TypegenLanguage::JavaScript => {
             extension == "js" || extension == "jsx"
         }
+        TypegenLanguage::StandaloneGraphQLToTypescript => is_graphql_extension(extension),
     }
 }
 

@@ -23,10 +23,21 @@ use super::FileSourceResult;
 use crate::errors::Result;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LocatedGraphQLSource {
-    pub index: usize,
-    pub graphql_source: GraphQLSource,
+pub enum LocatedGraphQLSource {
+    EmbeddedGraphQLSource {
+        index: usize,
+        graphql_source: GraphQLSource,
+    },
+    StandaloneGraphQLSource {
+        graphql_source: GraphQLSource,
+    },
 }
+
+// #[derive(Debug, Serialize, Deserialize, Clone)]
+// pub struct LocatedGraphQLSource {
+//     pub index: usize,
+//     pub graphql_source: GraphQLSource,
+// }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocatedDocblockSource {
@@ -61,30 +72,45 @@ pub fn extract_javascript_features_from_file(
     file: &File,
 ) -> Result<LocatedJavascriptSourceFeatures> {
     let contents = read_file_to_string(file_source_result, file)?;
-    let features = extract_graphql::extract(&contents);
-    let mut graphql_sources = Vec::new();
-    let mut docblock_sources = Vec::new();
-    for (index, feature) in features.into_iter().enumerate() {
-        match feature {
-            JavaScriptSourceFeature::GraphQL(graphql_source) => {
-                graphql_sources.push(LocatedGraphQLSource {
-                    graphql_source,
-                    index,
-                })
-            }
-            JavaScriptSourceFeature::Docblock(docblock_source) => {
-                docblock_sources.push(LocatedDocblockSource {
-                    docblock_source,
-                    index,
-                })
+    if file
+        .name
+        .extension()
+        .map(|e| e == "graphql")
+        .unwrap_or(false)
+    {
+        let graphql_sources = vec![LocatedGraphQLSource::StandaloneGraphQLSource {
+            graphql_source: GraphQLSource::from_whole_document(contents),
+        }];
+        Ok(LocatedJavascriptSourceFeatures {
+            graphql_sources,
+            docblock_sources: vec![],
+        })
+    } else {
+        let features = extract_graphql::extract(&contents);
+        let mut graphql_sources = Vec::new();
+        let mut docblock_sources = Vec::new();
+        for (index, feature) in features.into_iter().enumerate() {
+            match feature {
+                JavaScriptSourceFeature::GraphQL(graphql_source) => {
+                    graphql_sources.push(LocatedGraphQLSource::EmbeddedGraphQLSource {
+                        graphql_source,
+                        index,
+                    })
+                }
+                JavaScriptSourceFeature::Docblock(docblock_source) => {
+                    docblock_sources.push(LocatedDocblockSource {
+                        docblock_source,
+                        index,
+                    })
+                }
             }
         }
-    }
 
-    Ok(LocatedJavascriptSourceFeatures {
-        graphql_sources,
-        docblock_sources,
-    })
+        Ok(LocatedJavascriptSourceFeatures {
+            graphql_sources,
+            docblock_sources,
+        })
+    }
 }
 
 pub fn source_for_location(

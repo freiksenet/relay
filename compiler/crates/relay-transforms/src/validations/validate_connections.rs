@@ -21,7 +21,7 @@ use graphql_ir::ValidationMessage;
 use graphql_ir::Validator;
 use graphql_ir::Value;
 use intern::string_key::StringKey;
-use intern::Lookup;
+// use intern::Lookup;
 use schema::Field;
 use schema::Schema;
 use schema::Type;
@@ -418,27 +418,27 @@ impl<'s> ConnectionValidation<'s> {
     ) -> DiagnosticsResult<()> {
         match constant_key_arg {
             Some((arg, key_val)) => match key_val {
-                ConstantValue::String(string_val) => {
-                    let field_alias_or_name = match connection_field.alias {
-                        Some(alias) => alias.item,
-                        None => connection_schema_field.name.item,
-                    };
-                    let postfix = format!("_{}", field_alias_or_name);
-                    if !string_val.lookup().ends_with(postfix.as_str()) {
-                        return Err(vec![
-                            Diagnostic::error(
-                                ValidationMessage::InvalidConnectionKeyArgPostfix {
-                                    connection_directive_name: connection_directive.name.item,
-                                    connection_field_name: connection_schema_field.name.item,
-                                    key_arg_name: *KEY_ARG_NAME,
-                                    key_arg_value: *string_val,
-                                    postfix,
-                                },
-                                arg.value.location,
-                            )
-                            .annotate("related location", connection_field.definition.location),
-                        ]);
-                    }
+                ConstantValue::String(_string_val) => {
+                    // let field_alias_or_name = match connection_field.alias {
+                    //     Some(alias) => alias.item,
+                    //     None => connection_schema_field.name.item,
+                    // };
+                    // let postfix = format!("_{}", field_alias_or_name);
+                    // if !string_val.lookup().ends_with(postfix.as_str()) {
+                    //     return Err(vec![
+                    //         Diagnostic::error(
+                    //             ValidationMessage::InvalidConnectionKeyArgPostfix {
+                    //                 connection_directive_name: connection_directive.name.item,
+                    //                 connection_field_name: connection_schema_field.name.item,
+                    //                 key_arg_name: *KEY_ARG_NAME,
+                    //                 key_arg_value: *string_val,
+                    //                 postfix,
+                    //             },
+                    //             arg.value.location,
+                    //         )
+                    //         .annotate("related location", connection_field.definition.location),
+                    //     ]);
+                    // }
                 }
                 _ => {
                     return Err(vec![

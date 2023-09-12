@@ -36,7 +36,9 @@ impl<'config> WatchmanFileSource<'config> {
         config: &'config Config,
         perf_logger_event: &impl PerfLogEvent,
     ) -> Result<WatchmanFileSource<'config>> {
+        debug!(">>> WATCHMAN - Trying to connect with watchman");
         let connect_timer = perf_logger_event.start("file_source_connect_time");
+        debug!(">>> WATCHMAN - Trying to create client");
         let client = Connector::new().connect().await?;
         let canonical_root = CanonicalPath::canonicalize(&config.root_dir).map_err(|err| {
             Error::CanonicalizeRoot {
@@ -44,6 +46,7 @@ impl<'config> WatchmanFileSource<'config> {
                 source: err,
             }
         })?;
+        debug!(">>> WATCHMAN - After canonical root");
         let resolved_root = client.resolve_root(canonical_root).await?;
         perf_logger_event.stop(connect_timer);
         debug!(

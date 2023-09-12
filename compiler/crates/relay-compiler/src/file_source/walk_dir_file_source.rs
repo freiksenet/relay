@@ -49,6 +49,10 @@ fn get_expected_file_extensions(config: &Config) -> HashSet<&str> {
                 file_extensions.insert("ts");
                 file_extensions.insert("tsx");
             }
+            TypegenLanguage::StandaloneGraphQLToTypescript => {
+                file_extensions.insert("graphql");
+                file_extensions.insert("gql");
+            }
         }
     }
     file_extensions

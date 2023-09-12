@@ -210,6 +210,7 @@ pub struct ProjectConfig {
     pub name: ProjectName,
     pub base: Option<ProjectName>,
     pub output: Option<PathBuf>,
+    pub output_extension: Option<String>,
     pub extra_artifacts_output: Option<PathBuf>,
     pub shard_output: bool,
     pub shard_strip_regex: Option<Regex>,
@@ -239,6 +240,7 @@ impl Default for ProjectConfig {
             feature_flags: Default::default(),
             base: None,
             output: None,
+            output_extension: None,
             extra_artifacts_output: None,
             shard_output: false,
             shard_strip_regex: None,
@@ -267,6 +269,7 @@ impl Debug for ProjectConfig {
             name,
             base,
             output,
+            output_extension,
             extra_artifacts_output,
             shard_output,
             shard_strip_regex,
@@ -291,6 +294,7 @@ impl Debug for ProjectConfig {
             .field("name", name)
             .field("base", base)
             .field("output", output)
+            .field("output_extension", output_extension)
             .field("extra_artifacts_output", extra_artifacts_output)
             .field("shard_output", shard_output)
             .field("shard_strip_regex", shard_strip_regex)
@@ -354,7 +358,8 @@ impl ProjectConfig {
             // Otherwise, output into a file relative to the source.
             source_file
                 .get_dir()
-                .join("__generated__")
+                // TODO - configurable
+                // .join("__generated__")
                 .join(artifact_file_name)
         }
     }
@@ -369,9 +374,28 @@ impl ProjectConfig {
         } else {
             match &self.typegen_config.language {
                 TypegenLanguage::Flow | TypegenLanguage::JavaScript => {
-                    format!("{}.graphql.js", definition_name)
+                    format!(
+                        "{}{}",
+                        definition_name,
+                        self.output_extension.as_deref().unwrap_or(".graphql.js")
+                    )
                 }
-                TypegenLanguage::TypeScript => format!("{}.graphql.ts", definition_name),
+                TypegenLanguage::TypeScript => format!(
+                    "{}{}",
+                    definition_name,
+                    self.output_extension.as_deref().unwrap_or(".graphql.ts")
+                ),
+                TypegenLanguage::StandaloneGraphQLToTypescript => {
+                    let filename = PathBuf::from(source_file.path())
+                        .file_prefix()
+                        .map(|s| s.to_str().unwrap().to_string())
+                        .unwrap_or_else(|| definition_name.to_string());
+                    format!(
+                        "{}{}",
+                        filename,
+                        self.output_extension.as_deref().unwrap_or(".graphql.ts")
+                    )
+                }
             }
         };
         self.create_path_for_artifact(source_file, filename)

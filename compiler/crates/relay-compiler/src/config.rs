@@ -356,6 +356,7 @@ Example file:
                     enabled: true,
                     schema_extensions: config_file_project.schema_extensions,
                     output: config_file_project.output,
+                    output_extension: config_file_project.output_extension,
                     extra_artifacts_output: config_file_project.extra_artifacts_output,
                     shard_output: config_file_project.shard_output,
                     shard_strip_regex,
@@ -669,6 +670,10 @@ pub struct SingleProjectConfigFile {
     /// Root directory of application code
     pub src: PathBuf,
 
+    /// Extension of a generated file
+    #[serde(default)]
+    pub output_extension: Option<String>,
+
     /// A specific directory to output all artifacts to. When enabling this '
     /// the babel plugin needs `artifactDirectory` set as well.
     pub artifact_directory: Option<PathBuf>,
@@ -742,6 +747,7 @@ impl Default for SingleProjectConfigFile {
             project_name: ProjectName::default(),
             schema: Default::default(),
             src: Default::default(),
+            output_extension: Default::default(),
             artifact_directory: Default::default(),
             include: vec![],
             extensions: vec![],
@@ -858,6 +864,7 @@ impl SingleProjectConfigFile {
                 common_root_dir.clone(),
                 self.schema,
             )),
+            output_extension: self.output_extension,
             schema_config: self.schema_config,
             schema_extensions: self
                 .schema_extensions
@@ -960,6 +967,10 @@ pub struct ConfigFileProject {
     /// compiler, so that the compiler can cleanup extra files.
     #[serde(default)]
     output: Option<PathBuf>,
+
+    /// Extension of a generated file
+    #[serde(default)]
+    output_extension: Option<String>,
 
     /// Some projects may need to generate extra artifacts. For those, we may
     /// need to provide an additional directory to put them.

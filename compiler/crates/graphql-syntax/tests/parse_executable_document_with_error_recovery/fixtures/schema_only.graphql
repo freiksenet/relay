@@ -1,0 +1,8 @@
+scalar Foo
+
+"""
+Definition with comment
+"""
+type User {
+  id: ID!
+}

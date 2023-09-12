@@ -152,14 +152,26 @@ impl<'a> Parser<'a> {
     /// Parses a document consisting only of executable nodes: operations and
     /// fragments.
     pub fn parse_executable_document(mut self) -> WithDiagnostics<ExecutableDocument> {
-        let document = self.parse_executable_document_impl();
+        let document = self.parse_document_impl();
         if self.errors.is_empty() {
             let _ = self.parse_kind(TokenKind::EndOfFile);
         }
-        let document = document.unwrap_or_else(|_| ExecutableDocument {
-            span: Span::new(self.index(), self.index()),
-            definitions: Default::default(),
-        });
+        let document = document
+            .map(|d| ExecutableDocument {
+                span: d.location.span(),
+                definitions: d
+                    .definitions
+                    .into_iter()
+                    .filter_map(|d| match d {
+                        Definition::ExecutableDefinition(e) => Some(e),
+                        Definition::TypeSystemDefinition(_) => None,
+                    })
+                    .collect(),
+            })
+            .unwrap_or_else(|_| ExecutableDocument {
+                span: Span::new(self.index(), self.index()),
+                definitions: Default::default(),
+            });
         WithDiagnostics {
             item: document,
             diagnostics: self.errors,
@@ -229,16 +241,16 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_executable_document_impl(&mut self) -> ParseResult<ExecutableDocument> {
-        let start = self.index();
-        let definitions = self.parse_list(
-            |s| s.peek_executable_definition(),
-            |s| s.parse_executable_definition(),
-        )?;
-        let end = self.index();
-        let span = Span::new(start, end);
-        Ok(ExecutableDocument { span, definitions })
-    }
+    // fn parse_executable_document_impl(&mut self) -> ParseResult<ExecutableDocument> {
+    //     let start = self.index();
+    //     let definitions = self.parse_list(
+    //         |s| s.peek_executable_definition(),
+    //         |s| s.parse_executable_definition(),
+    //     )?;
+    //     let end = self.index();
+    //     let span = Span::new(start, end);
+    //     Ok(ExecutableDocument { span, definitions })
+    // }
 
     fn parse_schema_document_impl(&mut self) -> ParseResult<SchemaDocument> {
         let start = self.index();

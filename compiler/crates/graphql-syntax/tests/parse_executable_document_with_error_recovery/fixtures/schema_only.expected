@@ -1,0 +1,15 @@
+==================================== INPUT ====================================
+scalar Foo
+
+"""
+Definition with comment
+"""
+type User {
+  id: ID!
+}
+==================================== OUTPUT ===================================
+ExecutableDocument {
+    span: 0:74,
+    definitions: [],
+}
+Errors:

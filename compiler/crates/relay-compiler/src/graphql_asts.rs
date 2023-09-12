@@ -99,13 +99,20 @@ impl GraphQLAsts {
         // latest values for the graphql strings in the file.
         for (file_name, pending_graphql_sources) in graphql_sources.pending.iter() {
             let mut definitions_for_file = Vec::new();
-            for LocatedGraphQLSource {
-                index,
-                graphql_source,
-            } in pending_graphql_sources.iter()
-            {
-                let source_location =
-                    SourceLocationKey::embedded(&file_name.to_string_lossy(), *index);
+            for source in pending_graphql_sources.iter() {
+                let (source_location, graphql_source) = match source {
+                    LocatedGraphQLSource::EmbeddedGraphQLSource {
+                        index,
+                        graphql_source,
+                    } => (
+                        SourceLocationKey::embedded(&file_name.to_string_lossy(), *index),
+                        graphql_source,
+                    ),
+                    LocatedGraphQLSource::StandaloneGraphQLSource { graphql_source } => (
+                        SourceLocationKey::standalone(&file_name.to_string_lossy()),
+                        graphql_source,
+                    ),
+                };
                 match graphql_syntax::parse_executable(
                     &graphql_source.text_source().text,
                     source_location,
@@ -135,14 +142,21 @@ impl GraphQLAsts {
             // and collect definition names that are removed from that file.
             // (A definition moved to another file is considered as a deletion and a new source)
             if let Some(processed_graphql_sources) = graphql_sources.processed.get(file_name) {
-                for LocatedGraphQLSource {
-                    index,
-                    graphql_source,
-                } in processed_graphql_sources.iter()
-                {
+                for source in processed_graphql_sources.iter() {
+                    let (source_location, graphql_source) = match source {
+                        LocatedGraphQLSource::EmbeddedGraphQLSource {
+                            index,
+                            graphql_source,
+                        } => (
+                            SourceLocationKey::embedded(&file_name.to_string_lossy(), *index),
+                            graphql_source,
+                        ),
+                        LocatedGraphQLSource::StandaloneGraphQLSource { graphql_source } => (
+                            SourceLocationKey::standalone(&file_name.to_string_lossy()),
+                            graphql_source,
+                        ),
+                    };
                     // TODO: parse name instead of the whole graphql text
-                    let source_location =
-                        SourceLocationKey::embedded(&file_name.to_string_lossy(), *index);
                     if let Ok(document) = graphql_syntax::parse_executable(
                         &graphql_source.text_source().text,
                         source_location,
@@ -185,13 +199,20 @@ impl GraphQLAsts {
             }
 
             let mut definitions_for_file = Vec::new();
-            for LocatedGraphQLSource {
-                index,
-                graphql_source,
-            } in processed_graphql_sources.iter()
-            {
-                let source_location =
-                    SourceLocationKey::embedded(&file_name.to_string_lossy(), *index);
+            for source in processed_graphql_sources.iter() {
+                let (source_location, graphql_source) = match source {
+                    LocatedGraphQLSource::EmbeddedGraphQLSource {
+                        index,
+                        graphql_source,
+                    } => (
+                        SourceLocationKey::embedded(&file_name.to_string_lossy(), *index),
+                        graphql_source,
+                    ),
+                    LocatedGraphQLSource::StandaloneGraphQLSource { graphql_source } => (
+                        SourceLocationKey::standalone(&file_name.to_string_lossy()),
+                        graphql_source,
+                    ),
+                };
                 match graphql_syntax::parse_executable(
                     &graphql_source.text_source().text,
                     source_location,
