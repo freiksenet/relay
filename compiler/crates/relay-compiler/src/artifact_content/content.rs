@@ -339,7 +339,7 @@ pub fn generate_operation(
                     "require('relay-runtime').PreloadableQueryRegistry.set(node.params.id, node);",
                 )?;
             }
-            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypescript => {
+            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
                 writeln!(
                     section,
                     "import {{ PreloadableQueryRegistry }} from 'relay-runtime';",
@@ -765,7 +765,7 @@ fn write_variable_value_with_type(
         TypegenLanguage::Flow => {
             writeln!(section, "var {}/*: {}*/ = {};", variable_name, type_, value)
         }
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypescript => {
+        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
             writeln!(section, "const {}: {} = {};", variable_name, type_, value)
         }
     }
@@ -774,7 +774,7 @@ fn write_variable_value_with_type(
 fn generate_disable_lint_section(language: &TypegenLanguage) -> Result<GenericSection, FmtError> {
     let mut section = GenericSection::default();
     match language {
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypescript => {
+        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
             writeln!(section, "/* tslint:disable */")?;
             writeln!(section, "/* eslint-disable */")?;
             writeln!(section, "// @ts-nocheck")?;
@@ -789,7 +789,7 @@ fn generate_disable_lint_section(language: &TypegenLanguage) -> Result<GenericSe
 fn generate_use_strict_section(language: &TypegenLanguage) -> Result<GenericSection, FmtError> {
     let mut section = GenericSection::default();
     match language {
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypescript => {}
+        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {}
         TypegenLanguage::Flow | TypegenLanguage::JavaScript => {
             writeln!(section, "'use strict';")?;
         }
@@ -807,7 +807,7 @@ fn write_import_type_from(
     match language {
         TypegenLanguage::JavaScript => Ok(()),
         TypegenLanguage::Flow => writeln!(section, "import type {{ {} }} from '{}';", type_, from),
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypescript => writeln!(
+        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => writeln!(
             section,
             "import {}{{ {} }} from '{}';",
             if project_config.typegen_config.use_import_type_syntax {
@@ -831,7 +831,7 @@ fn write_export_generated_node(
         (TypegenLanguage::Flow, None) | (TypegenLanguage::JavaScript, _) => {
             variable_node.to_string()
         }
-        (TypegenLanguage::TypeScript, _) | (TypegenLanguage::StandaloneGraphQLToTypescript, _) => {
+        (TypegenLanguage::TypeScript, _) | (TypegenLanguage::StandaloneGraphQLToTypeScript, _) => {
             // TODO: Support force_type for TypeScript
             variable_node.to_string()
         }
@@ -886,7 +886,7 @@ fn write_source_hash(
                 writeln!(section, "  (node/*: any*/).hash = \"{}\";", source_hash)?
             }
             TypegenLanguage::JavaScript => writeln!(section, "  node.hash = \"{}\";", source_hash)?,
-            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypescript => {
+            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
                 writeln!(section, "  (node as any).hash = \"{}\";", source_hash)?
             }
         };
@@ -897,7 +897,7 @@ fn write_source_hash(
                 writeln!(section, "(node/*: any*/).hash = \"{}\";", source_hash)?
             }
             TypegenLanguage::JavaScript => writeln!(section, "node.hash = \"{}\";", source_hash)?,
-            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypescript => {
+            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
                 writeln!(section, "(node as any).hash = \"{}\";", source_hash)?
             }
         };

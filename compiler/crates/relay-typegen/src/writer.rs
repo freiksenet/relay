@@ -436,6 +436,6 @@ pub(crate) fn new_writer_from_config(config: &TypegenConfig) -> Box<dyn Writer> 
         TypegenLanguage::JavaScript => Box::new(JavaScriptPrinter::default()),
         TypegenLanguage::Flow => Box::new(FlowPrinter::new()),
         TypegenLanguage::TypeScript => Box::new(TypeScriptPrinter::new(config)),
-        TypegenLanguage::StandaloneGraphQLToTypescript => Box::new(TypeScriptPrinter::new(config)),
+        TypegenLanguage::StandaloneGraphQLToTypeScript => Box::new(TypeScriptPrinter::new(config)),
     }
 }
