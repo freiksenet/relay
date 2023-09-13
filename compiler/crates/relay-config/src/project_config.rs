@@ -386,13 +386,14 @@ impl ProjectConfig {
                     self.output_extension.as_deref().unwrap_or(".graphql.ts")
                 ),
                 TypegenLanguage::StandaloneGraphQLToTypescript => {
-                    let filename = PathBuf::from(source_file.path())
-                        .file_prefix()
-                        .map(|s| s.to_str().unwrap().to_string())
-                        .unwrap_or_else(|| definition_name.to_string());
+                    let default = definition_name.to_string();
+                    let path = PathBuf::from(source_file.path());
+                    let basename = path.file_name()
+                        .and_then(|f| f.to_str().unwrap().split(".").next())
+                        .unwrap_or(&default);
                     format!(
                         "{}{}",
-                        filename,
+                        basename,
                         self.output_extension.as_deref().unwrap_or(".graphql.ts")
                     )
                 }
