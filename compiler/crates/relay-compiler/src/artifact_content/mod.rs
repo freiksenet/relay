@@ -14,9 +14,11 @@ use common::SourceLocationKey;
 use content::generate_fragment;
 use content::generate_operation;
 use content::generate_split_operation;
+use content::generate_tmp_graphql_artifact;
 use content::generate_updatable_query;
 use graphql_ir::FragmentDefinition;
 use graphql_ir::OperationDefinition;
+use log::kv::source;
 use relay_codegen::Printer;
 use relay_codegen::QueryID;
 use relay_typegen::FragmentLocations;
@@ -53,6 +55,9 @@ pub enum ArtifactContent {
     },
     Generic {
         content: Vec<u8>,
+    },
+    TMPMixedGraphQL {
+        artifacts: Vec<ArtifactContent>,
     },
 }
 
@@ -139,6 +144,16 @@ impl ArtifactContent {
                 typegen_fragment,
                 source_hash.as_ref(),
                 skip_types,
+                fragment_locations,
+            )
+            .unwrap(),
+            ArtifactContent::TMPMixedGraphQL { artifacts } => generate_tmp_graphql_artifact(
+                config,
+                project_config,
+                printer,
+                schema,
+                artifacts,
+                source_file,
                 fragment_locations,
             )
             .unwrap(),

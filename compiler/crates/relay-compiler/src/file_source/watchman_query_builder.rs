@@ -39,7 +39,7 @@ pub fn get_watchman_expr(config: &Config) -> Expr {
                                 PathBuf::from("tsx"),
                             ]
                         }
-                        TypegenLanguage::StandaloneGraphQLToTypeScript => {
+                        TypegenLanguage::TMPGraphQLToTypeScript => {
                             vec![PathBuf::from("graphql"), PathBuf::from("gql")]
                         }
                     }),

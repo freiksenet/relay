@@ -16,13 +16,13 @@ use relay_typegen::has_raw_response_type_directive;
 
 /// Specifies the imported and exported generated types of an
 /// artifact.
-pub struct ArtifactGeneratedTypes {
-    pub imported_types: &'static str,
-    pub ast_type: &'static str,
+pub struct ArtifactGeneratedTypes<'a> {
+    pub imported_types: &'a str,
+    pub ast_type: &'a str,
     pub exported_type: Option<String>,
 }
 
-impl ArtifactGeneratedTypes {
+impl<'a> ArtifactGeneratedTypes<'a> {
     pub fn from_operation(
         operation: &OperationDefinition,
         skip_types: bool,

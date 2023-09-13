@@ -11,6 +11,7 @@ use std::fmt::Write;
 use std::sync::Arc;
 
 use common::NamedItem;
+use common::SourceLocationKey;
 use graphql_ir::FragmentDefinition;
 use graphql_ir::FragmentDefinitionName;
 use graphql_ir::OperationDefinition;
@@ -24,6 +25,7 @@ use relay_typegen::generate_fragment_type_exports_section;
 use relay_typegen::generate_named_validator_export;
 use relay_typegen::generate_operation_type_exports_section;
 use relay_typegen::generate_split_operation_type_exports_section;
+use relay_typegen::generate_tmp_mixed_operation_and_fragments_export_section;
 use relay_typegen::FragmentLocations;
 use relay_typegen::TypegenConfig;
 use relay_typegen::TypegenLanguage;
@@ -38,6 +40,7 @@ use super::content_section::DocblockSection;
 use super::content_section::GenericSection;
 use crate::config::Config;
 use crate::config::ProjectConfig;
+use crate::ArtifactContent;
 
 #[allow(clippy::too_many_arguments)]
 pub fn generate_updatable_query(
@@ -339,7 +342,7 @@ pub fn generate_operation(
                     "require('relay-runtime').PreloadableQueryRegistry.set(node.params.id, node);",
                 )?;
             }
-            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
+            TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => {
                 writeln!(
                     section,
                     "import {{ PreloadableQueryRegistry }} from 'relay-runtime';",
@@ -647,6 +650,116 @@ fn generate_read_only_fragment(
     content_sections.into_signed_bytes()
 }
 
+pub fn generate_tmp_graphql_artifact(
+    config: &Config,
+    project_config: &ProjectConfig,
+    printer: &mut Printer<'_>,
+    schema: &SDLSchema,
+    artifacts: &Vec<ArtifactContent>,
+    source_file: SourceLocationKey,
+    fragment_locations: &FragmentLocations,
+) -> Result<Vec<u8>, FmtError> {
+    let mut content_sections = ContentSections::default();
+
+    // -- Begin Docblock Section --
+    content_sections.push(ContentSection::Docblock(generate_docblock_section(
+        config,
+        project_config,
+        vec![],
+    )?));
+    // -- End Docblock Section --
+
+    // -- Begin Disable Lint Section --
+    content_sections.push(ContentSection::Generic(generate_disable_lint_section(
+        &project_config.typegen_config.language,
+    )?));
+    // -- End Disable Lint Section --
+
+    // -- Begin Use Strict Section --
+    content_sections.push(ContentSection::Generic(generate_use_strict_section(
+        &project_config.typegen_config.language,
+    )?));
+    // -- End Use Strict Section --
+
+    // -- Begin Types Section --
+    let mut section = GenericSection::default();
+
+    let fragments: Vec<(&FragmentDefinition, &FragmentDefinition)> = artifacts
+        .iter()
+        .filter_map(|a| match a {
+            ArtifactContent::Fragment {
+                typegen_fragment,
+                reader_fragment,
+                ..
+            } => Some((typegen_fragment.as_ref(), reader_fragment.as_ref())),
+            _ => None,
+        })
+        .collect();
+    let maybe_operation = artifacts.iter().find_map(|a| match a {
+        ArtifactContent::Operation {
+            normalization_operation,
+            reader_operation,
+            typegen_operation,
+            ..
+        } => Some((normalization_operation, reader_operation, typegen_operation)),
+        _ => None,
+    });
+    let maybe_provided_variables = maybe_operation
+        .map(|(normalization_operation, ..)| {
+            printer.print_provided_variables(schema, normalization_operation)
+        })
+        .flatten();
+
+    write!(
+        section,
+        "{}",
+        generate_tmp_mixed_operation_and_fragments_export_section(
+            maybe_operation.map(|(to, ..)| to.as_ref()),
+            maybe_operation.map(|(_, no, ..)| no.as_ref()),
+            &fragments,
+            schema,
+            project_config,
+            fragment_locations,
+            maybe_provided_variables
+        ),
+    )?;
+
+    // let mut imported_types = String::new();
+    // let mut ast_type = String::new();
+    // let mut exported_type = String::new();
+    // for generated_type in artifact_generated_types {
+    //     imported_types.push_str(generated_type.imported_types);
+    //     ast_type.push_str(generated_type.ast_type);
+    //     match generated_type.exported_type {
+    //         Some(export) => {
+    //             exported_type.push_str(export.as_str());
+    //         }
+    //         _ => {}
+    //     };
+    // }
+    // let generated_types = ArtifactGeneratedTypes {
+    //     imported_types: &imported_types,
+    //     ast_type: &ast_type,
+    //     exported_type: if exported_type.is_empty() {
+    //         None
+    //     } else {
+    //         Some(exported_type)
+    //     },
+    // };
+
+    // write_import_type_from(
+    //     project_config,
+    //     &mut section,
+    //     generated_types.imported_types,
+    //     "relay-runtime",
+    // )?;
+
+    content_sections.push(ContentSection::Generic(section));
+    // -- End Types Section --
+
+    content_sections.into_signed_bytes()
+}
+
 fn generate_assignable_fragment(
     config: &Config,
     project_config: &ProjectConfig,
@@ -765,7 +878,7 @@ fn write_variable_value_with_type(
         TypegenLanguage::Flow => {
             writeln!(section, "var {}/*: {}*/ = {};", variable_name, type_, value)
         }
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => {
             writeln!(section, "const {}: {} = {};", variable_name, type_, value)
         }
     }
@@ -774,7 +887,7 @@ fn write_variable_value_with_type(
 fn generate_disable_lint_section(language: &TypegenLanguage) -> Result<GenericSection, FmtError> {
     let mut section = GenericSection::default();
     match language {
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => {
             writeln!(section, "/* tslint:disable */")?;
             writeln!(section, "/* eslint-disable */")?;
             writeln!(section, "// @ts-nocheck")?;
@@ -789,7 +902,7 @@ fn generate_disable_lint_section(language: &TypegenLanguage) -> Result<GenericSe
 fn generate_use_strict_section(language: &TypegenLanguage) -> Result<GenericSection, FmtError> {
     let mut section = GenericSection::default();
     match language {
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {}
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => {}
         TypegenLanguage::Flow | TypegenLanguage::JavaScript => {
             writeln!(section, "'use strict';")?;
         }
@@ -807,7 +920,7 @@ fn write_import_type_from(
     match language {
         TypegenLanguage::JavaScript => Ok(()),
         TypegenLanguage::Flow => writeln!(section, "import type {{ {} }} from '{}';", type_, from),
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => writeln!(
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => writeln!(
             section,
             "import {}{{ {} }} from '{}';",
             if project_config.typegen_config.use_import_type_syntax {
@@ -831,7 +944,7 @@ fn write_export_generated_node(
         (TypegenLanguage::Flow, None) | (TypegenLanguage::JavaScript, _) => {
             variable_node.to_string()
         }
-        (TypegenLanguage::TypeScript, _) | (TypegenLanguage::StandaloneGraphQLToTypeScript, _) => {
+        (TypegenLanguage::TypeScript, _) | (TypegenLanguage::TMPGraphQLToTypeScript, _) => {
             // TODO: Support force_type for TypeScript
             variable_node.to_string()
         }
@@ -886,7 +999,7 @@ fn write_source_hash(
                 writeln!(section, "  (node/*: any*/).hash = \"{}\";", source_hash)?
             }
             TypegenLanguage::JavaScript => writeln!(section, "  node.hash = \"{}\";", source_hash)?,
-            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
+            TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => {
                 writeln!(section, "  (node as any).hash = \"{}\";", source_hash)?
             }
         };
@@ -897,7 +1010,7 @@ fn write_source_hash(
                 writeln!(section, "(node/*: any*/).hash = \"{}\";", source_hash)?
             }
             TypegenLanguage::JavaScript => writeln!(section, "node.hash = \"{}\";", source_hash)?,
-            TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => {
+            TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => {
                 writeln!(section, "(node as any).hash = \"{}\";", source_hash)?
             }
         };

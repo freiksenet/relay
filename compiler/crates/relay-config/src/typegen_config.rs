@@ -31,7 +31,7 @@ type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 pub enum TypegenLanguage {
     JavaScript,
     TypeScript,
-    StandaloneGraphQLToTypeScript,
+    TMPGraphQLToTypeScript,
     Flow,
 }
 

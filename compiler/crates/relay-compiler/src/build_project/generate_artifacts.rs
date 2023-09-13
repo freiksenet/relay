@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -17,6 +18,7 @@ use graphql_text_printer::OperationPrinter;
 use graphql_text_printer::PrinterOptions;
 use intern::string_key::StringKey;
 use intern::Lookup;
+use relay_config::TypegenLanguage;
 use relay_transforms::ArtifactSourceKeyData;
 use relay_transforms::ClientEdgeGeneratedQueryMetadataDirective;
 use relay_transforms::Programs;
@@ -57,7 +59,7 @@ pub fn generate_artifacts(
         ..Default::default()
     };
     let mut operation_printer = OperationPrinter::new(&programs.operation_text, printer_options);
-    return group_operations(programs).into_values().map(|operations| {
+    let artifacts: Vec<Artifact> = group_operations(programs).into_values().map(|operations| {
             if let Some(normalization) = operations.normalization {
                 // We have a normalization AST... so we'll move forward with that
                 if let Some(metadata) = SplitOperationMetadata::find(&normalization.directives)
@@ -200,6 +202,38 @@ pub fn generate_artifacts(
             )
         }))
         .collect();
+    match project_config.typegen_config.language {
+        TypegenLanguage::TMPGraphQLToTypeScript => {
+            let mut grouped_artifacts: BTreeMap<SourceLocationKey, Vec<Artifact>> = BTreeMap::new();
+            for artifact in artifacts {
+                let artifacts_by_source = grouped_artifacts
+                    .entry(artifact.source_file)
+                    .or_insert_with(|| Vec::new());
+                artifacts_by_source.push(artifact);
+            }
+            let mut tmp_artifacts = Vec::new();
+            for (source_file, grouped_artifacts) in grouped_artifacts {
+                let mut path = None;
+                let mut source_keys = Vec::new();
+                let mut contents = Vec::new();
+                for grouped_artifact in grouped_artifacts {
+                    source_keys.extend(grouped_artifact.artifact_source_keys);
+                    contents.push(grouped_artifact.content);
+                    path = Some(grouped_artifact.path);
+                }
+                tmp_artifacts.push(Artifact {
+                    artifact_source_keys: source_keys,
+                    path: path.unwrap(),
+                    content: ArtifactContent::TMPMixedGraphQL {
+                        artifacts: contents,
+                    },
+                    source_file,
+                });
+            }
+            tmp_artifacts
+        }
+        _ => artifacts,
+    }
 }
 
 fn generate_normalization_artifact(

@@ -37,6 +37,7 @@ pub use write::has_raw_response_type_directive;
 use write::write_fragment_type_exports_section;
 use write::write_operation_type_exports_section;
 use write::write_split_operation_type_exports_section;
+use write::write_tmp_mixed_operation_and_fragments_export_section;
 use write::write_validator_function;
 use writer::new_writer_from_config;
 
@@ -227,6 +228,43 @@ pub fn generate_split_operation_type_exports_section(
         typegen_operation,
         normalization_operation,
         &mut writer,
+    )
+    .unwrap();
+    writer.into_string()
+}
+
+pub fn generate_tmp_mixed_operation_and_fragments_export_section(
+    typegen_operation_option: Option<&OperationDefinition>,
+    normalization_operation_option: Option<&OperationDefinition>,
+    fragment_definitions: &[(&FragmentDefinition, &FragmentDefinition)],
+    schema: &SDLSchema,
+    project_config: &ProjectConfig,
+    fragment_locations: &FragmentLocations,
+    maybe_provided_variables: Option<String>,
+) -> String {
+    let location = match typegen_operation_option {
+        Some(typegen_operation) => WithLocation::new(
+            typegen_operation.name.location,
+            typegen_operation.name.item.0,
+        ),
+        None => fragment_definitions.first().unwrap().0.name.map(|x| x.0),
+    };
+    let typegen_context = TypegenContext::new(
+        schema,
+        project_config,
+        false,
+        location,
+        fragment_locations,
+        false,
+    );
+    let mut writer = new_writer_from_config(&project_config.typegen_config);
+    write_tmp_mixed_operation_and_fragments_export_section(
+        &typegen_context,
+        typegen_operation_option,
+        normalization_operation_option,
+        fragment_definitions,
+        &mut writer,
+        maybe_provided_variables,
     )
     .unwrap();
     writer.into_string()

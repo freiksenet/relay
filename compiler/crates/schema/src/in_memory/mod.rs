@@ -1184,8 +1184,8 @@ impl InMemorySchema {
             }) => {
                 if self.directives.contains_key(&DirectiveName(name.value)) {
                     let str_name = name.value.lookup();
-                    if str_name != "skip" && str_name != "include" {
-                        // TODO(T63941319) @skip and @include directives are duplicated in our schema
+                    if str_name != "skip" && str_name != "include" && str_name != "connection" {
+                        // TODO(T63941319) @skip and @include and @connection directives are duplicated in our schema
                         return Err(vec![Diagnostic::error(
                             SchemaError::DuplicateDirectiveDefinition(name.value),
                             Location::new(*location_key, name.span),

@@ -221,6 +221,16 @@ fn apply_common_transforms(
     Ok(Arc::new(program))
 }
 
+// // Apply transforms only for tmp graphql
+// fn apply_tmp_graphql_transforms(
+//     project_config: &ProjectConfig,
+//     program: Arc<Program>,
+//     base_fragment_names: Arc<FragmentDefinitionNameSet>,
+//     perf_logger: Arc<impl PerfLogger>,
+//     custom_transforms_config: Option<&CustomTransformsConfig>,
+// ) -> DiagnosticsResult<Arc<Program>> {
+// }
+
 /// Applies transforms only for generated reader code.
 /// Corresponds to the "fragment transforms" in the JS compiler.
 fn apply_reader_transforms(

@@ -155,8 +155,10 @@ pub(crate) fn write_operation_type_exports_section(
     }
 
     // Always include 'FragmentRef' for typescript codegen for operations that have fragment spreads
-    if typegen_context.project_config.typegen_config.language == TypegenLanguage::TypeScript
-        && has_fragment_spread(&typegen_operation.selections)
+    if matches!(
+        typegen_context.project_config.typegen_config.language,
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript
+    ) && has_fragment_spread(&typegen_operation.selections)
     {
         runtime_imports.generic_fragment_type = true;
     }
@@ -458,6 +460,172 @@ pub(crate) fn write_fragment_type_exports_section(
     Ok(())
 }
 
+pub(crate) fn write_tmp_mixed_operation_and_fragments_export_section(
+    typegen_context: &'_ TypegenContext<'_>,
+    typegen_operation_option: Option<&OperationDefinition>,
+    normalization_operation_option: Option<&OperationDefinition>,
+    fragment_definitions: &[(&FragmentDefinition, &FragmentDefinition)],
+    writer: &mut Box<dyn Writer>,
+    maybe_provided_variables_object: Option<String>,
+) -> FmtResult {
+    let mut encountered_enums = Default::default();
+    let mut encountered_fragments = Default::default();
+    let mut imported_resolvers = Default::default();
+    let mut actor_change_status = ActorChangeStatus::NoActorChange;
+    let mut runtime_imports = RuntimeImports::default();
+    let mut custom_scalars = CustomScalarsImports::default();
+    let mut input_object_types = Default::default();
+    let mut imported_raw_response_types = Default::default();
+
+    let operation_data_type_option = if let Some(typegen_operation) = typegen_operation_option {
+        let operation_type_selections = visit_selections(
+            typegen_context,
+            &typegen_operation.selections,
+            &mut input_object_types,
+            &mut encountered_enums,
+            &mut imported_raw_response_types,
+            &mut encountered_fragments,
+            &mut imported_resolvers,
+            &mut actor_change_status,
+            &mut custom_scalars,
+            &mut runtime_imports,
+            None,
+        );
+
+        Some(get_data_type(
+            typegen_context,
+            operation_type_selections.into_iter(),
+            MaskStatus::Unmasked, // Queries are never unmasked
+            None,
+            false,
+            false, // Query types can never be plural
+            &mut encountered_enums,
+            &mut encountered_fragments,
+            &mut custom_scalars,
+        ))
+    } else {
+        None
+    };
+
+    let mut fragment_data_types = Vec::new();
+    for (fragment_definition, _) in fragment_definitions {
+        let mut fragment_type_selections = visit_selections(
+            typegen_context,
+            &fragment_definition.selections,
+            &mut input_object_types,
+            &mut encountered_enums,
+            &mut imported_raw_response_types,
+            &mut encountered_fragments,
+            &mut imported_resolvers,
+            &mut actor_change_status,
+            &mut custom_scalars,
+            &mut runtime_imports,
+            None,
+        );
+        if !fragment_definition.type_condition.is_abstract_type() {
+            let num_concrete_selections = fragment_type_selections
+                .iter()
+                .filter(|sel| sel.get_enclosing_concrete_type().is_some())
+                .count();
+            if num_concrete_selections <= 1 {
+                for selection in fragment_type_selections
+                    .iter_mut()
+                    .filter(|sel| sel.is_typename())
+                {
+                    selection.set_concrete_type(fragment_definition.type_condition);
+                }
+            }
+        }
+
+        let data_type = fragment_definition.name.item;
+        let data_type_name = format!("{}Fragment", data_type);
+        fragment_data_types.push((
+            data_type_name,
+            get_data_type(
+                typegen_context,
+                fragment_type_selections.into_iter(),
+                MaskStatus::Unmasked,
+                None,
+                false,
+                false, // TODO ?
+                &mut encountered_enums,
+                &mut encountered_fragments,
+                &mut custom_scalars,
+            ),
+        ));
+    }
+    write_import_actor_change_point(actor_change_status, writer)?;
+    runtime_imports.write_runtime_imports(writer)?;
+    write_fragment_imports(typegen_context, None, encountered_fragments, writer)?;
+    write_relay_resolver_imports(typegen_context, imported_resolvers, writer)?;
+    write_split_raw_response_type_imports(typegen_context, imported_raw_response_types, writer)?;
+
+    if let Some(normalization_operation) = normalization_operation_option {
+        let typegen_operation = typegen_operation_option.unwrap();
+        let operation_data_type = operation_data_type_option.unwrap();
+        let expected_provided_variables_type = generate_provided_variables_type(
+            typegen_context,
+            normalization_operation,
+            &mut input_object_types,
+            &mut encountered_enums,
+            &mut custom_scalars,
+        );
+
+        let input_variables_type = get_input_variables_type(
+            typegen_context,
+            typegen_operation,
+            &mut input_object_types,
+            &mut encountered_enums,
+            &mut custom_scalars,
+        );
+
+        let operation_name = format!(
+            "{}{}",
+            typegen_operation.name.item.0,
+            if typegen_operation.is_query() {
+                "Query"
+            } else if typegen_operation.is_mutation() {
+                "Mutation"
+            } else {
+                "Subscription"
+            }
+        );
+
+        let variables_identifier = format!("{}Variables", operation_name);
+        // let variables_identifier_key = variables_identifier.as_str().intern();
+
+        writer.write_export_type(&variables_identifier, &input_variables_type.into())?;
+
+        let response_identifier = operation_name;
+        // let response_identifier_key = response_identifier.as_str().intern();
+        writer.write_export_type(&response_identifier, &operation_data_type)?;
+        if let Some(provided_variables_type) = expected_provided_variables_type {
+            let actual_provided_variables_object = maybe_provided_variables_object.unwrap_or_else(|| {
+                panic!("Expected the provided variables object. If you see this error, it most likley a bug in the compiler.");
+        });
+
+            // Assert that expected type of provided variables matches
+            // the flow/typescript types of functions with providers.
+            writer.write_type_assertion(
+                actual_provided_variables_object.as_str(),
+                &provided_variables_type,
+            )?;
+        }
+    }
+    let input_object_types = input_object_types
+        .into_iter()
+        .map(|(key, val)| (key, val.unwrap_resolved_type()));
+
+    write_enum_definitions(typegen_context, encountered_enums, writer)?;
+    write_custom_scalar_imports(custom_scalars, writer)?;
+    write_input_object_types(input_object_types, writer)?;
+
+    for (fragment_type_name, fragment_data_type) in fragment_data_types {
+        writer.write_export_type(&fragment_type_name, &fragment_data_type)?;
+    }
+    Ok(())
+}
+
 fn write_fragment_imports(
     typegen_context: &'_ TypegenContext<'_>,
     fragment_name_to_skip: Option<FragmentDefinitionName>,
@@ -556,7 +724,7 @@ fn write_relay_resolver_imports(
     // they should be imported in the codegen.
     if matches!(
         typegen_context.project_config.typegen_config.language,
-        TypegenLanguage::TypeScript
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript
     ) {
         return Ok(());
     }
@@ -829,7 +997,7 @@ fn write_abstract_validator_function(
 
     let (open_comment, close_comment) = match language {
         TypegenLanguage::Flow | TypegenLanguage::JavaScript => ("/*", "*/"),
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => ("", ""),
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => ("", ""),
     };
 
     write!(
@@ -919,7 +1087,7 @@ fn write_concrete_validator_function(
     let (open_comment, close_comment) = match typegen_context.project_config.typegen_config.language
     {
         TypegenLanguage::Flow | TypegenLanguage::JavaScript => ("/*", "*/"),
-        TypegenLanguage::TypeScript | TypegenLanguage::StandaloneGraphQLToTypeScript => ("", ""),
+        TypegenLanguage::TypeScript | TypegenLanguage::TMPGraphQLToTypeScript => ("", ""),
     };
 
     write!(

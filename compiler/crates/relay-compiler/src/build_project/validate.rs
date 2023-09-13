@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+use common::Diagnostic;
 use common::escalate_and_check;
 use common::CriticalDiagnostics;
 use common::DiagnosticsResult;
@@ -40,7 +41,76 @@ pub fn validate(
     project_config: &ProjectConfig,
     additional_validations: &Option<AdditionalValidations>,
 ) -> DiagnosticsResult<WithDiagnostics<()>> {
-    let output = try_all(vec![
+    let output = match project_config.typegen_config.language {
+        relay_config::TypegenLanguage::TMPGraphQLToTypeScript => {
+            validate_tmp_graphql(program, project_config, additional_validations)
+        }
+        _ => validate_normal(program, project_config, additional_validations),
+    };
+    match output {
+        Ok(_) => Ok(WithDiagnostics {
+            item: (),
+            diagnostics: Vec::new(),
+        }),
+        Err(errors) => {
+            let critical_level = project_config.diagnostic_report_config.critical_level;
+
+            // We are ignoring the results of successful validations in the error branch, since
+            // `try_map` returns a vector of all errors if any validator returned an error.
+            // This is okay because successful validations return no special information
+            // (i.e. their Ok variant contains ()).
+
+            escalate_and_check(critical_level.into(), errors)
+                .map(|StableDiagnostics(diagnostics)| WithDiagnostics {
+                    item: (),
+                    diagnostics,
+                })
+                .map_err(|CriticalDiagnostics(errors)| errors)
+        }
+    }
+}
+
+pub fn validate_normal(
+    program: &Program,
+    project_config: &ProjectConfig,
+    additional_validations: &Option<AdditionalValidations>,
+) -> Result<Vec<()>, Vec<Diagnostic>> {
+    try_all(vec![
+        disallow_reserved_aliases(program, &project_config.schema_config),
+        validate_no_unselectable_selections(program, &project_config.schema_config),
+        validate_no_double_underscore_alias(program),
+        validate_unused_variables(program),
+        validate_unused_fragment_variables(program),
+        validate_connections(program, &project_config.schema_config.connection_interface),
+        validate_relay_directives(program),
+        validate_global_variable_names(program),
+        validate_module_names(program),
+        validate_no_inline_fragments_with_raw_response_type(program),
+        disallow_typename_on_root(program),
+        validate_static_args(program),
+        if let Some(ref validate) = additional_validations {
+            validate(program, &project_config.feature_flags)
+        } else {
+            Ok(())
+        },
+        disallow_circular_no_inline_fragments(program),
+        validate_updatable_directive(program),
+        validate_updatable_fragment_spread(program),
+        validate_assignable_directive(program),
+        if project_config.feature_flags.enable_relay_resolver_transform {
+            validate_resolver_fragments(program)
+        } else {
+            Ok(())
+        },
+    ])
+}
+
+pub fn validate_tmp_graphql(
+    program: &Program,
+    project_config: &ProjectConfig,
+    additional_validations: &Option<AdditionalValidations>,
+) -> Result<Vec<()>, Vec<Diagnostic>> {
+    try_all(vec![
         disallow_reserved_aliases(program, &project_config.schema_config),
         validate_no_unselectable_selections(program, &project_config.schema_config),
         validate_no_double_underscore_alias(program),
@@ -67,27 +137,5 @@ pub fn validate(
         } else {
             Ok(())
         },
-    ]);
-
-    match output {
-        Ok(_) => Ok(WithDiagnostics {
-            item: (),
-            diagnostics: Vec::new(),
-        }),
-        Err(errors) => {
-            let critical_level = project_config.diagnostic_report_config.critical_level;
-
-            // We are ignoring the results of successful validations in the error branch, since
-            // `try_map` returns a vector of all errors if any validator returned an error.
-            // This is okay because successful validations return no special information
-            // (i.e. their Ok variant contains ()).
-
-            escalate_and_check(critical_level.into(), errors)
-                .map(|StableDiagnostics(diagnostics)| WithDiagnostics {
-                    item: (),
-                    diagnostics,
-                })
-                .map_err(|CriticalDiagnostics(errors)| errors)
-        }
-    }
+    ])
 }

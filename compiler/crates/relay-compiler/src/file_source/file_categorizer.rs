@@ -382,7 +382,7 @@ fn is_valid_source_code_extension(typegen_language: &TypegenLanguage, extension:
         TypegenLanguage::Flow | TypegenLanguage::JavaScript => {
             extension == "js" || extension == "jsx"
         }
-        TypegenLanguage::StandaloneGraphQLToTypeScript => is_graphql_extension(extension),
+        TypegenLanguage::TMPGraphQLToTypeScript => is_graphql_extension(extension),
     }
 }
 

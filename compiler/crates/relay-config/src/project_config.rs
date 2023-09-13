@@ -368,6 +368,7 @@ impl ProjectConfig {
         &self,
         source_file: SourceLocationKey,
         definition_name: StringKey,
+        // tmp specific kind of operation
     ) -> PathBuf {
         let filename = if let Some(filename_for_artifact) = &self.filename_for_artifact {
             filename_for_artifact(source_file, definition_name)
@@ -385,10 +386,11 @@ impl ProjectConfig {
                     definition_name,
                     self.output_extension.as_deref().unwrap_or(".graphql.ts")
                 ),
-                TypegenLanguage::StandaloneGraphQLToTypeScript => {
+                TypegenLanguage::TMPGraphQLToTypeScript => {
                     let default = definition_name.to_string();
                     let path = PathBuf::from(source_file.path());
-                    let basename = path.file_name()
+                    let basename = path
+                        .file_name()
                         .and_then(|f| f.to_str().unwrap().split(".").next())
                         .unwrap_or(&default);
                     format!(
