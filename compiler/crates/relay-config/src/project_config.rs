@@ -385,7 +385,7 @@ impl ProjectConfig {
                     definition_name,
                     self.output_extension.as_deref().unwrap_or(".graphql.ts")
                 ),
-                TypegenLanguage::StandaloneGraphQLToTypescript => {
+                TypegenLanguage::StandaloneGraphQLToTypeScript => {
                     let default = definition_name.to_string();
                     let path = PathBuf::from(source_file.path());
                     let basename = path.file_name()
