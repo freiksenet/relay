@@ -27,8 +27,8 @@ use schema::Schema;
 use crate::relay_directive::RelayDirective;
 
 /// Transform to inline fragment spreads with @relay(mask:false)
-pub fn mask(program: &Program) -> Program {
-    let mut transform = Mask::new(program);
+pub fn mask(program: &Program, unmask_all_spreads: bool) -> Program {
+    let mut transform = Mask::new(program, unmask_all_spreads);
     transform
         .transform_program(program)
         .replace_or_else(|| program.clone())
@@ -39,13 +39,15 @@ type JoinedArguments<'s> = IndexMap<VariableName, &'s VariableDefinition>;
 struct Mask<'s> {
     program: &'s Program,
     current_reachable_arguments: Vec<&'s VariableDefinition>,
+    unmask_all_spreads: bool,
 }
 
 impl<'s> Mask<'s> {
-    fn new(program: &'s Program) -> Self {
+    fn new(program: &'s Program, unmask_all_spreads: bool) -> Self {
         Self {
             program,
             current_reachable_arguments: vec![],
+            unmask_all_spreads,
         }
     }
 
@@ -120,7 +122,7 @@ impl<'s> Transformer for Mask<'s> {
     }
 
     fn transform_fragment_spread(&mut self, spread: &FragmentSpread) -> Transformed<Selection> {
-        if RelayDirective::is_unmasked_fragment_spread(spread) {
+        if self.unmask_all_spreads || RelayDirective::is_unmasked_fragment_spread(spread) {
             let fragment = self.program.fragment(spread.fragment.item).unwrap();
             self.current_reachable_arguments
                 .extend(&fragment.used_global_variables);

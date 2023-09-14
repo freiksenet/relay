@@ -5,9 +5,9 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-use common::Diagnostic;
 use common::escalate_and_check;
 use common::CriticalDiagnostics;
+use common::Diagnostic;
 use common::DiagnosticsResult;
 use common::FeatureFlags;
 use common::StableDiagnostics;
@@ -116,7 +116,7 @@ pub fn validate_tmp_graphql(
         validate_no_double_underscore_alias(program),
         // validate_unused_variables(program),
         // validate_unused_fragment_variables(program),
-        validate_connections(program, &project_config.schema_config.connection_interface),
+        // validate_connections(program, &project_config.schema_config.connection_interface),
         validate_relay_directives(program),
         validate_global_variable_names(program),
         // validate_module_names(program),

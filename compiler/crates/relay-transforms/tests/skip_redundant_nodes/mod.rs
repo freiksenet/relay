@@ -31,7 +31,7 @@ pub fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> {
         let schema = get_test_schema_with_extensions(extensions);
         let ir = build(&schema, &ast.definitions).unwrap();
         let program = Program::from_definitions(Arc::clone(&schema), ir);
-        let next_program = skip_redundant_nodes(&inline_fragments(&program));
+        let next_program = skip_redundant_nodes(&inline_fragments(&program, false));
         next_program
             .operations()
             .map(|def| print_operation(&schema, def, printer_options.clone()))
@@ -41,7 +41,7 @@ pub fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> {
         let ast = parse_executable(fixture.content, source_location).unwrap();
         let ir = build(&schema, &ast.definitions).unwrap();
         let program = Program::from_definitions(Arc::clone(&schema), ir);
-        let next_program = skip_redundant_nodes(&inline_fragments(&program));
+        let next_program = skip_redundant_nodes(&inline_fragments(&program, false));
         next_program
             .operations()
             .map(|def| print_operation(&schema, def, printer_options.clone()))

@@ -259,6 +259,7 @@ fn generate_normalization_artifact(
             normalization_operation: Arc::clone(normalization),
             reader_operation: operations.expect_reader(),
             typegen_operation: operations.expect_typegen(),
+            operation_text: operations.operation_text.map(|o| Arc::new(o.clone())),
             source_hash,
             text,
             id_and_text_hash: None,
@@ -359,14 +360,14 @@ impl<'a> OperationGroup<'a> {
 /// Groups operations from the given programs by name for efficient access.
 /// `Programs::operation(name)` does a linear search, so it's more efficient to
 /// group in a batch.
-fn group_operations(programs: &Programs) -> FnvHashMap<StringKey, OperationGroup<'_>> {
-    let mut grouped_operations: FnvHashMap<StringKey, OperationGroup<'_>> = programs
+fn group_operations(programs: &Programs) -> FnvHashMap<SourceLocationKey, OperationGroup<'_>> {
+    let mut grouped_operations: FnvHashMap<SourceLocationKey, OperationGroup<'_>> = programs
         .normalization
         .operations
         .iter()
         .map(|normalization_operation| {
             (
-                normalization_operation.name.item.0,
+                normalization_operation.name.location.source_location(),
                 OperationGroup {
                     normalization: Some(normalization_operation),
                     operation_text: None,
@@ -379,19 +380,19 @@ fn group_operations(programs: &Programs) -> FnvHashMap<StringKey, OperationGroup
 
     for operation in programs.operation_text.operations() {
         grouped_operations
-            .entry(operation.name.item.0)
+            .entry(operation.name.location.source_location())
             .or_insert_with(OperationGroup::new)
             .operation_text = Some(operation);
     }
     for operation in programs.reader.operations() {
         grouped_operations
-            .entry(operation.name.item.0)
+            .entry(operation.name.location.source_location())
             .or_insert_with(OperationGroup::new)
             .reader = Some(operation);
     }
     for operation in programs.typegen.operations() {
         grouped_operations
-            .entry(operation.name.item.0)
+            .entry(operation.name.location.source_location())
             .or_insert_with(OperationGroup::new)
             .typegen = Some(operation);
     }

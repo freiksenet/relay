@@ -14,6 +14,7 @@ use common::PerfLogger;
 use graphql_ir::FragmentDefinitionNameSet;
 use graphql_ir::Program;
 use relay_config::ProjectConfig;
+use relay_config::TypegenLanguage;
 
 use super::*;
 use crate::apply_custom_transforms::apply_after_custom_transforms;
@@ -38,6 +39,37 @@ pub struct Programs {
 }
 
 pub fn apply_transforms<TPerfLogger>(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<TPerfLogger>,
+    print_stats: Option<fn(extra_info: &str, program: &Program) -> ()>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Programs>
+where
+    TPerfLogger: PerfLogger + 'static,
+{
+    match project_config.typegen_config.language {
+        TypegenLanguage::TMPGraphQLToTypeScript => apply_tmp_graphql_transforms(
+            project_config,
+            program,
+            base_fragment_names,
+            perf_logger,
+            print_stats,
+            custom_transforms_config,
+        ),
+        _ => apply_transforms_impl(
+            project_config,
+            program,
+            base_fragment_names,
+            perf_logger,
+            print_stats,
+            custom_transforms_config,
+        ),
+    }
+}
+
+fn apply_transforms_impl<TPerfLogger>(
     project_config: &ProjectConfig,
     program: Arc<Program>,
     base_fragment_names: Arc<FragmentDefinitionNameSet>,
@@ -133,6 +165,102 @@ where
     })
 }
 
+fn apply_tmp_graphql_transforms<TPerfLogger>(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<TPerfLogger>,
+    print_stats: Option<fn(extra_info: &str, program: &Program) -> ()>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Programs>
+where
+    TPerfLogger: PerfLogger + 'static,
+{
+    // The execution pipeline is as follows, where items at the same indentation
+    // can be computed independently and therefore in parallel:
+    // |- common
+    //    |- reader
+    //    |- operation
+    //       |- normalization
+    //       |- operation_text
+    // |- typegen
+    //
+    // NOTE: try_join(f1, f2) prefers the errors from f1 over f2, so process the normalization
+    // program first since it is likely to include more errors (both per-fragment and
+    // whole-operation errors) than the reader_program which just includes per-fragment errors.
+    let (((normalization_program, text_program), reader_program), typegen_program) = try_join(
+        || {
+            let common_program = apply_tmp_graphql_common_transforms(
+                project_config,
+                Arc::clone(&program),
+                Arc::clone(&base_fragment_names),
+                Arc::clone(&perf_logger),
+                custom_transforms_config,
+            )?;
+
+            try_join(
+                || {
+                    let operation_program = apply_tmp_graphql_operation_transforms(
+                        project_config,
+                        Arc::clone(&common_program),
+                        Arc::clone(&base_fragment_names),
+                        Arc::clone(&perf_logger),
+                        custom_transforms_config,
+                    )?;
+
+                    try_join(
+                        || {
+                            apply_tmp_graphql_normalization_transforms(
+                                project_config,
+                                Arc::clone(&operation_program),
+                                Arc::clone(&base_fragment_names),
+                                Arc::clone(&perf_logger),
+                                print_stats,
+                                custom_transforms_config,
+                            )
+                        },
+                        || {
+                            apply_tmp_graphql_operation_text_transforms(
+                                project_config,
+                                Arc::clone(&operation_program),
+                                Arc::clone(&base_fragment_names),
+                                Arc::clone(&perf_logger),
+                                custom_transforms_config,
+                            )
+                        },
+                    )
+                },
+                || {
+                    apply_tmp_graphql_reader_transforms(
+                        project_config,
+                        Arc::clone(&common_program),
+                        Arc::clone(&base_fragment_names),
+                        Arc::clone(&perf_logger),
+                        custom_transforms_config,
+                    )
+                },
+            )
+        },
+        || {
+            apply_tmp_graphql_typegen_transforms(
+                project_config,
+                Arc::clone(&program),
+                Arc::clone(&base_fragment_names),
+                Arc::clone(&perf_logger),
+                custom_transforms_config,
+            )
+        },
+    )?;
+
+    Ok(Programs {
+        source: program,
+        reader: reader_program,
+        normalization: normalization_program,
+        operation_text: text_program,
+        typegen: typegen_program,
+    })
+}
+
 /// Applies transforms that apply to every output.
 fn apply_common_transforms(
     project_config: &ProjectConfig,
@@ -157,7 +285,7 @@ fn apply_common_transforms(
     program = log_event.time("transform_connections", || {
         transform_connections(&program, &project_config.schema_config.connection_interface)
     });
-    program = log_event.time("mask", || mask(&program));
+    program = log_event.time("mask", || mask(&program, false));
     program = log_event.time("transform_defer_stream", || {
         transform_defer_stream(&program)
     })?;
@@ -221,15 +349,42 @@ fn apply_common_transforms(
     Ok(Arc::new(program))
 }
 
-// // Apply transforms only for tmp graphql
-// fn apply_tmp_graphql_transforms(
-//     project_config: &ProjectConfig,
-//     program: Arc<Program>,
-//     base_fragment_names: Arc<FragmentDefinitionNameSet>,
-//     perf_logger: Arc<impl PerfLogger>,
-//     custom_transforms_config: Option<&CustomTransformsConfig>,
-// ) -> DiagnosticsResult<Arc<Program>> {
-// }
+fn apply_tmp_graphql_common_transforms(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<impl PerfLogger>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Arc<Program>> {
+    let log_event = perf_logger.create_event("apply_common_transforms");
+    log_event.string("project", project_config.name.to_string());
+
+    let custom_transforms = &custom_transforms_config.and_then(|c| c.common_transforms.as_ref());
+    let mut program = apply_before_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+    program = log_event.time("generate_typename", || {
+        generate_typename(&program, false, true)
+    });
+
+    program = apply_after_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    log_event.complete();
+
+    Ok(Arc::new(program))
+}
 
 /// Applies transforms only for generated reader code.
 /// Corresponds to the "fragment transforms" in the JS compiler.
@@ -290,6 +445,56 @@ fn apply_reader_transforms(
     });
 
     log_event.time("flatten", || flatten(&mut program, true, false))?;
+    program = log_event.time("skip_redundant_nodes", || skip_redundant_nodes(&program));
+    program = log_event.time("generate_data_driven_dependency_metadata", || {
+        generate_data_driven_dependency_metadata(&program)
+    });
+    program = log_event.time("hash_supported_argument", || {
+        hash_supported_argument(&program)
+    })?;
+
+    program = apply_after_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    log_event.complete();
+
+    Ok(Arc::new(program))
+}
+
+fn apply_tmp_graphql_reader_transforms(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<impl PerfLogger>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Arc<Program>> {
+    let log_event = perf_logger.create_event("apply_reader_transforms");
+    log_event.string("project", project_config.name.to_string());
+
+    let custom_transforms = &custom_transforms_config.and_then(|c| c.reader_transforms.as_ref());
+    let mut program = apply_before_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    program = log_event.time("skip_unreachable_node", || {
+        skip_unreachable_node_strict(&program)
+    })?;
+    program = log_event.time("remove_base_fragments", || {
+        remove_base_fragments(&program, &base_fragment_names)
+    });
+
+    // log_event.time("flatten", || flatten(&mut program, true, false))?;
     program = log_event.time("skip_redundant_nodes", || skip_redundant_nodes(&program));
     program = log_event.time("generate_data_driven_dependency_metadata", || {
         generate_data_driven_dependency_metadata(&program)
@@ -384,6 +589,52 @@ fn apply_operation_transforms(
     Ok(Arc::new(program))
 }
 
+/// Applies transforms that apply to all operation artifacts.
+/// Corresponds to the "query transforms" in the JS compiler.
+fn apply_tmp_graphql_operation_transforms(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<impl PerfLogger>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Arc<Program>> {
+    let log_event = perf_logger.create_event("apply_operation_transforms");
+    log_event.string("project", project_config.name.to_string());
+
+    let custom_transforms = &custom_transforms_config.and_then(|c| c.operation_transforms.as_ref());
+    let mut program = apply_before_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    program = log_event.time("generate_id_field", || {
+        generate_id_field(&program, &project_config.schema_config)
+    });
+
+    if project_config.schema_config.non_node_id_fields.is_some() {
+        log_event.time("disallow_non_node_id_fields", || {
+            disallow_non_node_id_fields(&program, &project_config.schema_config)
+        })?;
+    }
+
+    program = apply_after_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    log_event.complete();
+
+    Ok(Arc::new(program))
+}
+
 /// After the operation transforms, this applies further transforms that only
 /// apply to the generated normalization code.
 ///
@@ -451,7 +702,7 @@ fn apply_normalization_transforms(
         print_stats("skip_unreachable_node", &program);
     }
 
-    program = log_event.time("inline_fragments", || inline_fragments(&program));
+    program = log_event.time("inline_fragments", || inline_fragments(&program, false));
     if let Some(print_stats) = maybe_print_stats {
         print_stats("inline_fragments", &program);
     }
@@ -461,7 +712,9 @@ fn apply_normalization_transforms(
         print_stats("client_extensions", &program);
     }
 
-    program = log_event.time("generate_typename", || generate_typename(&program, true));
+    program = log_event.time("generate_typename", || {
+        generate_typename(&program, true, false)
+    });
     if let Some(print_stats) = maybe_print_stats {
         print_stats("generate_typename", &program);
     }
@@ -470,6 +723,76 @@ fn apply_normalization_transforms(
     if let Some(print_stats) = maybe_print_stats {
         print_stats("flatten", &program);
     }
+
+    program = log_event.time("skip_redundant_nodes", || skip_redundant_nodes(&program));
+    if let Some(print_stats) = maybe_print_stats {
+        print_stats("skip_redundant_nodes", &program);
+    }
+
+    program = log_event.time("generate_test_operation_metadata", || {
+        generate_test_operation_metadata(&program, &project_config.test_path_regex)
+    })?;
+    if let Some(print_stats) = maybe_print_stats {
+        print_stats("generate_test_operation_metadata", &program);
+    }
+
+    program = apply_after_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        maybe_print_stats,
+    )?;
+
+    log_event.complete();
+
+    Ok(Arc::new(program))
+}
+
+fn apply_tmp_graphql_normalization_transforms(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<impl PerfLogger>,
+    maybe_print_stats: Option<fn(extra_info: &str, program: &Program) -> ()>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Arc<Program>> {
+    let log_event = perf_logger.create_event("apply_normalization_transforms");
+    log_event.string("project", project_config.name.to_string());
+    if let Some(print_stats) = maybe_print_stats {
+        print_stats("normalization start", &program);
+    }
+
+    let custom_transforms =
+        &custom_transforms_config.and_then(|c| c.normalization_transforms.as_ref());
+    let mut program = apply_before_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        maybe_print_stats,
+    )?;
+
+    program = log_event.time("hash_supported_argument", || {
+        hash_supported_argument(&program)
+    })?;
+    if let Some(print_stats) = maybe_print_stats {
+        print_stats("hash_supported_argument", &program);
+    }
+
+    program = log_event.time("skip_unreachable_node", || {
+        skip_unreachable_node_strict(&program)
+    })?;
+    if let Some(print_stats) = maybe_print_stats {
+        print_stats("skip_unreachable_node", &program);
+    }
+
+    // log_event.time("flatten", || flatten(&mut program, true, false))?;
+    // if let Some(print_stats) = maybe_print_stats {
+    // print_stats("flatten", &program);
+    // }
 
     program = log_event.time("skip_redundant_nodes", || skip_redundant_nodes(&program));
     if let Some(print_stats) = maybe_print_stats {
@@ -562,7 +885,6 @@ fn apply_operation_text_transforms(
         skip_unreachable_node_loose(&program)
     });
 
-    program = log_event.time("generate_typename", || generate_typename(&program, false));
     log_event.time("flatten", || flatten(&mut program, false, true))?;
     program = log_event.time("validate_operation_variables", || {
         validate_operation_variables(&program)
@@ -576,6 +898,68 @@ fn apply_operation_text_transforms(
     program = log_event.time("unwrap_custom_directive_selection", || {
         unwrap_custom_directive_selection(&program)
     });
+
+    program = apply_after_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    log_event.complete();
+
+    Ok(Arc::new(program))
+}
+
+/// After the operation transforms, this applies further transforms that only
+/// apply to the printed operation text.
+///
+/// Corresponds to the "print transforms" in the JS compiler
+fn apply_tmp_graphql_operation_text_transforms(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<impl PerfLogger>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Arc<Program>> {
+    let log_event = perf_logger.create_event("apply_operation_text_transforms");
+    log_event.string("project", project_config.name.to_string());
+
+    let custom_transforms =
+        &custom_transforms_config.and_then(|c| c.operation_text_transforms.as_ref());
+    let mut program = apply_before_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    log_event.time("validate_global_variables", || {
+        validate_global_variables(&program)
+    })?;
+
+    log_event.time("validate_selection_conflict", || {
+        graphql_ir_validations::validate_selection_conflict::<RelayLocationAgnosticBehavior>(
+            &program, true,
+        )
+    })?;
+    program = log_event.time("skip_unreachable_node_loose", || {
+        skip_unreachable_node_loose(&program)
+    });
+
+    program = log_event.time("generate_typename", || {
+        generate_typename(&program, false, true)
+    });
+    program = log_event.time("unwrap_custom_directive_selection", || {
+        unwrap_custom_directive_selection(&program)
+    });
+    // program = log_event.time("remove_imported_fragments", || {
+    //     remove_imported_fragments(&program)
+    // });
 
     program = apply_after_custom_transforms(
         &program,
@@ -618,7 +1002,7 @@ fn apply_typegen_transforms(
         )
     })?;
 
-    program = log_event.time("mask", || mask(&program));
+    program = log_event.time("mask", || mask(&program, false));
     program = log_event.time("transform_match", || {
         transform_match(
             &program,
@@ -686,6 +1070,46 @@ fn apply_typegen_transforms(
         relay_actor_change_transform(&program, &project_config.feature_flags.actor_change_support)
     })?;
 
+    program = apply_after_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    log_event.complete();
+
+    Ok(Arc::new(program))
+}
+
+fn apply_tmp_graphql_typegen_transforms(
+    project_config: &ProjectConfig,
+    program: Arc<Program>,
+    base_fragment_names: Arc<FragmentDefinitionNameSet>,
+    perf_logger: Arc<impl PerfLogger>,
+    custom_transforms_config: Option<&CustomTransformsConfig>,
+) -> DiagnosticsResult<Arc<Program>> {
+    let log_event = perf_logger.create_event("apply_typegen_transforms");
+    log_event.string("project", project_config.name.to_string());
+
+    let custom_transforms = &custom_transforms_config.and_then(|c| c.typegen_transforms.as_ref());
+    let mut program = apply_before_custom_transforms(
+        &program,
+        custom_transforms,
+        project_config,
+        &base_fragment_names,
+        &log_event,
+        None,
+    )?;
+
+    program = log_event.time("mask", || mask(&program, true));
+
+    log_event.time("flatten", || flatten(&mut program, false, false))?;
+    program = log_event.time("remove_base_fragments", || {
+        remove_base_fragments(&program, &base_fragment_names)
+    });
     program = apply_after_custom_transforms(
         &program,
         custom_transforms,

@@ -1288,20 +1288,25 @@ fn get_discriminated_union_ast(
         );
     }
 
-    // Add the __typename: "%other" branch of the discriminated union.
-    types.push(
-        typename_aliases
-            .iter()
-            .map(|typename_alias| {
-                Prop::KeyValuePair(KeyValuePairProp {
-                    key: *typename_alias,
-                    read_only: true,
-                    optional: false,
-                    value: AST::OtherTypename,
+    if !matches!(
+        typegen_context.project_config.typegen_config.language,
+        TypegenLanguage::TMPGraphQLToTypeScript
+    ) {
+        // Add the __typename: "%other" branch of the discriminated union.
+        types.push(
+            typename_aliases
+                .iter()
+                .map(|typename_alias| {
+                    Prop::KeyValuePair(KeyValuePairProp {
+                        key: *typename_alias,
+                        read_only: true,
+                        optional: false,
+                        value: AST::OtherTypename,
+                    })
                 })
-            })
-            .collect(),
-    );
+                .collect(),
+        );
+    }
     AST::Union(SortedASTList::new(
         types
             .into_iter()

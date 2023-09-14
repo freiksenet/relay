@@ -27,8 +27,8 @@ use crate::RelayLocationAgnosticBehavior;
 /// Expand fragment spreads into inline fragments containing the named
 /// fragment's directives and selections. Used for constructing a Normalization
 /// AST that contains all the selections that may be found in the query response.
-pub fn inline_fragments(program: &Program) -> Program {
-    let mut transform = InlineFragmentsTransform::new(program);
+pub fn inline_fragments(program: &Program, is_for_typegen: bool) -> Program {
+    let mut transform = InlineFragmentsTransform::new(program, is_for_typegen);
     transform
         .transform_program(program)
         .replace_or_else(|| program.clone())
@@ -60,13 +60,15 @@ impl Hash for FragmentSpreadKey {
 struct InlineFragmentsTransform<'s> {
     program: &'s Program,
     seen: Seen,
+    is_for_typegen: bool,
 }
 
 impl<'s> InlineFragmentsTransform<'s> {
-    fn new(program: &'s Program) -> Self {
+    fn new(program: &'s Program, is_for_typegen: bool) -> Self {
         Self {
             program,
             seen: Default::default(),
+            is_for_typegen,
         }
     }
 
@@ -119,7 +121,11 @@ impl<'s> Transformer for InlineFragmentsTransform<'s> {
         &mut self,
         _fragment: &FragmentDefinition,
     ) -> Transformed<FragmentDefinition> {
-        Transformed::Delete
+        if !self.is_for_typegen {
+            Transformed::Delete
+        } else {
+            Transformed::Keep
+        }
     }
 
     fn transform_selection(&mut self, selection: &Selection) -> Transformed<Selection> {

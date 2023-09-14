@@ -40,8 +40,13 @@ lazy_static! {
 
 /// Transform to add the `__typename` field to any LinkedField that both a) returns an
 /// abstract type and b) does not already directly query `__typename`.
-pub fn generate_typename(program: &Program, is_for_codegen: bool) -> Program {
-    let mut transform = GenerateTypenameTransform::new(program, is_for_codegen);
+pub fn generate_typename(
+    program: &Program,
+    is_for_codegen: bool,
+    always_add_typename: bool,
+) -> Program {
+    let mut transform =
+        GenerateTypenameTransform::new(program, is_for_codegen, always_add_typename);
     transform
         .transform_program(program)
         .replace_or_else(|| program.clone())
@@ -57,15 +62,17 @@ struct GenerateTypenameTransform<'s> {
     seen: Seen,
     is_for_codegen: bool,
     parent_type: Option<Type>,
+    always_add_typename: bool,
 }
 
 impl<'s> GenerateTypenameTransform<'s> {
-    fn new(program: &'s Program, is_for_codegen: bool) -> Self {
+    fn new(program: &'s Program, is_for_codegen: bool, always_add_typename: bool) -> Self {
         Self {
             program,
             seen: Default::default(),
             is_for_codegen,
             parent_type: None,
+            always_add_typename,
         }
     }
 }
@@ -123,7 +130,9 @@ impl<'s> Transformer for GenerateTypenameTransform<'s> {
         let selections = self.transform_selections(&field.selections);
         self.parent_type = parent_type;
         let is_abstract = field_definition.type_.inner().is_abstract_type();
-        let selections = if is_abstract && !has_typename_field(schema, &field.selections) {
+        let selections = if (is_abstract || self.always_add_typename)
+            && !has_typename_field(schema, &field.selections)
+        {
             let mut next_selections = Vec::with_capacity(field.selections.len() + 1);
             next_selections.push(Selection::ScalarField(Arc::new(ScalarField {
                 alias: None,

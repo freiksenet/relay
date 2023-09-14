@@ -23,7 +23,7 @@ pub fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> {
     let ast = parse_executable(fixture.content, source_location).unwrap();
     let ir = build(&schema, &ast.definitions).unwrap();
     let program = Program::from_definitions(Arc::clone(&schema), ir);
-    let next_program = &mask(&program);
+    let next_program = &mask(&program, false);
 
     assert_eq!(
         next_program.fragments().count(),

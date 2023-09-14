@@ -236,7 +236,7 @@ pub fn generate_split_operation_type_exports_section(
 pub fn generate_tmp_mixed_operation_and_fragments_export_section(
     typegen_operation_option: Option<&OperationDefinition>,
     normalization_operation_option: Option<&OperationDefinition>,
-    fragment_definitions: &[(&FragmentDefinition, &FragmentDefinition)],
+    fragment_definitions: &Vec<&FragmentDefinition>,
     schema: &SDLSchema,
     project_config: &ProjectConfig,
     fragment_locations: &FragmentLocations,
@@ -247,7 +247,7 @@ pub fn generate_tmp_mixed_operation_and_fragments_export_section(
             typegen_operation.name.location,
             typegen_operation.name.item.0,
         ),
-        None => fragment_definitions.first().unwrap().0.name.map(|x| x.0),
+        None => fragment_definitions.first().unwrap().name.map(|x| x.0),
     };
     let typegen_context = TypegenContext::new(
         schema,

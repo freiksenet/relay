@@ -33,6 +33,7 @@ pub enum ArtifactContent {
         normalization_operation: Arc<OperationDefinition>,
         reader_operation: Arc<OperationDefinition>,
         typegen_operation: Arc<OperationDefinition>,
+        operation_text: Option<Arc<OperationDefinition>>,
         source_hash: String,
         text: Option<String>,
         id_and_text_hash: Option<QueryID>,
@@ -83,6 +84,7 @@ impl ArtifactContent {
                 source_hash,
                 text,
                 id_and_text_hash,
+                ..
             } => generate_operation(
                 config,
                 project_config,

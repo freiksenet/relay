@@ -15,6 +15,9 @@ use common::SourceLocationKey;
 use graphql_ir::FragmentDefinition;
 use graphql_ir::FragmentDefinitionName;
 use graphql_ir::OperationDefinition;
+use graphql_text_printer::print_fragment;
+use graphql_text_printer::print_operation;
+use graphql_text_printer::PrinterOptions;
 use relay_codegen::build_request_params;
 use relay_codegen::Printer;
 use relay_codegen::QueryID;
@@ -684,29 +687,24 @@ pub fn generate_tmp_graphql_artifact(
     // -- Begin Types Section --
     let mut section = GenericSection::default();
 
-    let fragments: Vec<(&FragmentDefinition, &FragmentDefinition)> = artifacts
+    let fragments: Vec<&ArtifactContent> = artifacts
         .iter()
         .filter_map(|a| match a {
-            ArtifactContent::Fragment {
-                typegen_fragment,
-                reader_fragment,
-                ..
-            } => Some((typegen_fragment.as_ref(), reader_fragment.as_ref())),
+            ArtifactContent::Fragment { .. } => Some(a),
             _ => None,
         })
         .collect();
     let maybe_operation = artifacts.iter().find_map(|a| match a {
-        ArtifactContent::Operation {
-            normalization_operation,
-            reader_operation,
-            typegen_operation,
-            ..
-        } => Some((normalization_operation, reader_operation, typegen_operation)),
+        ArtifactContent::Operation { .. } => Some(a),
         _ => None,
     });
     let maybe_provided_variables = maybe_operation
-        .map(|(normalization_operation, ..)| {
-            printer.print_provided_variables(schema, normalization_operation)
+        .map(|ac| match ac {
+            ArtifactContent::Operation {
+                normalization_operation,
+                ..
+            } => printer.print_provided_variables(schema, normalization_operation),
+            _ => None,
         })
         .flatten();
 
@@ -714,9 +712,32 @@ pub fn generate_tmp_graphql_artifact(
         section,
         "{}",
         generate_tmp_mixed_operation_and_fragments_export_section(
-            maybe_operation.map(|(to, ..)| to.as_ref()),
-            maybe_operation.map(|(_, no, ..)| no.as_ref()),
-            &fragments,
+            maybe_operation
+                .map(|a| match a {
+                    ArtifactContent::Operation {
+                        typegen_operation, ..
+                    } => Some(typegen_operation.as_ref()),
+                    _ => None,
+                })
+                .flatten(),
+            maybe_operation
+                .map(|a| match a {
+                    ArtifactContent::Operation {
+                        normalization_operation,
+                        ..
+                    } => Some(normalization_operation.as_ref()),
+                    _ => None,
+                })
+                .flatten(),
+            &fragments
+                .iter()
+                .map(|ac| match ac {
+                    ArtifactContent::Fragment {
+                        typegen_fragment, ..
+                    } => typegen_fragment.as_ref(),
+                    _ => panic!("shouldn't get here"),
+                })
+                .collect(),
             schema,
             project_config,
             fragment_locations,
@@ -724,38 +745,48 @@ pub fn generate_tmp_graphql_artifact(
         ),
     )?;
 
-    // let mut imported_types = String::new();
-    // let mut ast_type = String::new();
-    // let mut exported_type = String::new();
-    // for generated_type in artifact_generated_types {
-    //     imported_types.push_str(generated_type.imported_types);
-    //     ast_type.push_str(generated_type.ast_type);
-    //     match generated_type.exported_type {
-    //         Some(export) => {
-    //             exported_type.push_str(export.as_str());
-    //         }
-    //         _ => {}
-    //     };
-    // }
-    // let generated_types = ArtifactGeneratedTypes {
-    //     imported_types: &imported_types,
-    //     ast_type: &ast_type,
-    //     exported_type: if exported_type.is_empty() {
-    //         None
-    //     } else {
-    //         Some(exported_type)
-    //     },
-    // };
-
-    // write_import_type_from(
-    //     project_config,
-    //     &mut section,
-    //     generated_types.imported_types,
-    //     "relay-runtime",
-    // )?;
-
     content_sections.push(ContentSection::Generic(section));
     // -- End Types Section --
+
+    // -- Begin AST section --
+    let mut section = GenericSection::default();
+    if let Some(ArtifactContent::Operation {
+        operation_text,
+        normalization_operation,
+        ..
+    }) = maybe_operation
+    {
+        if let Some(operation_text) = operation_text {
+            write!(
+                section,
+                "export const {}{}Document = `{}`;\n",
+                normalization_operation.name.item.0,
+                if normalization_operation.is_query() {
+                    "Query"
+                } else if normalization_operation.is_mutation() {
+                    "Mutation"
+                } else {
+                    "Subscription"
+                },
+                print_operation(schema, operation_text, PrinterOptions::default())
+            )?;
+        }
+    }
+    for ac in fragments.iter() {
+        if let ArtifactContent::Fragment {
+            reader_fragment, ..
+        } = ac
+        {
+            write!(
+                section,
+                "export const {}FragmentDoc = `{}`;\n",
+                reader_fragment.name.item.0,
+                print_fragment(schema, reader_fragment, PrinterOptions::default())
+            )?;
+        }
+    }
+    content_sections.push(ContentSection::Generic(section));
+    // -- End AST section --
 
     content_sections.into_signed_bytes()
 }

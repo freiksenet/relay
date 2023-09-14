@@ -464,7 +464,7 @@ pub(crate) fn write_tmp_mixed_operation_and_fragments_export_section(
     typegen_context: &'_ TypegenContext<'_>,
     typegen_operation_option: Option<&OperationDefinition>,
     normalization_operation_option: Option<&OperationDefinition>,
-    fragment_definitions: &[(&FragmentDefinition, &FragmentDefinition)],
+    fragment_definitions: &[&FragmentDefinition],
     writer: &mut Box<dyn Writer>,
     maybe_provided_variables_object: Option<String>,
 ) -> FmtResult {
@@ -508,7 +508,7 @@ pub(crate) fn write_tmp_mixed_operation_and_fragments_export_section(
     };
 
     let mut fragment_data_types = Vec::new();
-    for (fragment_definition, _) in fragment_definitions {
+    for fragment_definition in fragment_definitions {
         let mut fragment_type_selections = visit_selections(
             typegen_context,
             &fragment_definition.selections,
