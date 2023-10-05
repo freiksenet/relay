@@ -126,6 +126,10 @@ regex = "1.9.2"
 relay-config = { path = "../relay-config" }
 rustc-hash = "1.1.0"
 schema = { path = "../schema" }
+serde_json = { version = "1.0.100", features = [
+  "float_roundtrip",
+  "unbounded_depth"
+] }
 thiserror = "1.0.43"
 
 [dev-dependencies]

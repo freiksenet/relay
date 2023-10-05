@@ -8,16 +8,27 @@
 use std::fmt::Error as FmtError;
 use std::fmt::Result as FmtResult;
 use std::fmt::Write;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use common::NamedItem;
 use common::SourceLocationKey;
+use fnv::FnvHashMap;
 use graphql_ir::FragmentDefinition;
 use graphql_ir::FragmentDefinitionName;
+use graphql_ir::FragmentSpread;
 use graphql_ir::OperationDefinition;
+use graphql_ir::Program;
+use graphql_ir::ScalarField;
+use graphql_ir::Visitor;
 use graphql_text_printer::print_fragment;
 use graphql_text_printer::print_operation;
 use graphql_text_printer::PrinterOptions;
+use intern::string_key::Intern;
+use intern::string_key::StringKey;
 use relay_codegen::build_request_params;
 use relay_codegen::Printer;
 use relay_codegen::QueryID;
@@ -41,6 +52,7 @@ use super::content_section::ContentSection;
 use super::content_section::ContentSections;
 use super::content_section::DocblockSection;
 use super::content_section::GenericSection;
+use crate::compiler_state::Source;
 use crate::config::Config;
 use crate::config::ProjectConfig;
 use crate::ArtifactContent;
@@ -684,8 +696,14 @@ pub fn generate_tmp_graphql_artifact(
     )?));
     // -- End Use Strict Section --
 
-    // -- Begin Types Section --
+    // -- Begin import section --
     let mut section = GenericSection::default();
+    write!(
+        section,
+        "import {{ TypedDocumentNode as DocumentNode }} from \"@graphql-typed-document-node/core\";"
+    )?;
+    content_sections.push(ContentSection::Generic(section));
+    // -- End import section --
 
     let fragments: Vec<&ArtifactContent> = artifacts
         .iter()
@@ -707,6 +725,9 @@ pub fn generate_tmp_graphql_artifact(
             _ => None,
         })
         .flatten();
+
+    // -- Begin Types Section --
+    let mut section = GenericSection::default();
 
     write!(
         section,
@@ -757,9 +778,8 @@ pub fn generate_tmp_graphql_artifact(
     }) = maybe_operation
     {
         if let Some(operation_text) = operation_text {
-            write!(
-                section,
-                "export const {}{}Document = `{}`;\n",
+            let name = format!(
+                "{}{}",
                 normalization_operation.name.item.0,
                 if normalization_operation.is_query() {
                     "Query"
@@ -767,7 +787,12 @@ pub fn generate_tmp_graphql_artifact(
                     "Mutation"
                 } else {
                     "Subscription"
-                },
+                }
+            );
+            write!(
+                section,
+                "export const {0}Document = [`{1}`] as unknown as DocumentNode<{0}, {0}Variables>;\n",
+                name,
                 print_operation(schema, operation_text, PrinterOptions::default())
             )?;
         }
@@ -779,7 +804,7 @@ pub fn generate_tmp_graphql_artifact(
         {
             write!(
                 section,
-                "export const {}FragmentDoc = `{}`;\n",
+                "export const {0}FragmentDoc = [`{1}`] as unknown as DocumentNode<{0}, unknown>;\n",
                 reader_fragment.name.item.0,
                 print_fragment(schema, reader_fragment, PrinterOptions::default())
             )?;

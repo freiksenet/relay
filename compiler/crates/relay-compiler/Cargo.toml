@@ -44,6 +44,7 @@ md-5 = "0.10"
 persist-query = { path = "../persist-query" }
 rayon = "1.2"
 regex = "1.9.2"
+relative-path = "1.9.0"
 relay-codegen = { path = "../relay-codegen" }
 relay-config = { path = "../relay-config" }
 relay-docblock = { path = "../relay-docblock" }
@@ -55,7 +56,10 @@ schema = { path = "../schema" }
 schema-diff = { path = "../schema-diff" }
 serde = { version = "1.0.185", features = ["derive", "rc"] }
 serde_bser = "0.3"
-serde_json = { version = "1.0.100", features = ["float_roundtrip", "unbounded_depth"] }
+serde_json = { version = "1.0.100", features = [
+  "float_roundtrip",
+  "unbounded_depth"
+] }
 sha1 = "0.10.5"
 sha2 = "0.10.6"
 signedsource = { path = "../signedsource" }

@@ -26,6 +26,7 @@ mod directive_finder;
 mod errors;
 mod flatten;
 mod fragment_alias_directive;
+mod fragment_package_transform;
 mod generate_data_driven_dependency_metadata;
 mod generate_id_field;
 mod generate_live_query_metadata;
