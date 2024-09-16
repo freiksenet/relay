@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-//- module.js
+//- module.ts
 
 import type Page from 'Page';
 import type CatFlowType from 'Cat';
@@ -29,8 +29,3 @@ export function favorite_page(cat: CatFlowType, args: {id: number}): ClientPage 
  * @RelayResolver
  */
 export function all_pages(cat: CatFlowType, args: {limit: number | null | undefined}): Array<ClientPage> | null | undefined {}
-
-/**
- * @RelayResolver
- */
-export function all_pages(cat: CatFlowType, args: {limit?: null }): Array<ClientPage> | null | undefined {}
