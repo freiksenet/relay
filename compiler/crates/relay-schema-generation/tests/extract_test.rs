@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<23cbc9249c3d5d3ba74b21733c638f42>>
+ * @generated SignedSource<<7f528d4cf814d61c3cc43e92432aa963>>
  */
 
 mod extract;
@@ -49,9 +49,9 @@ async fn primitives() {
 
 #[tokio::test]
 async fn ts_arguments() {
-    let input = include_str!("extract/fixtures/ts-arguments.js");
+    let input = include_str!("extract/fixtures/ts-arguments.ts");
     let expected = include_str!("extract/fixtures/ts-arguments.expected");
-    test_fixture(transform_fixture, file!(), "ts-arguments.js", "extract/fixtures/ts-arguments.expected", input, expected).await;
+    test_fixture(transform_fixture, file!(), "ts-arguments.ts", "extract/fixtures/ts-arguments.expected", input, expected).await;
 }
 
 #[tokio::test]
