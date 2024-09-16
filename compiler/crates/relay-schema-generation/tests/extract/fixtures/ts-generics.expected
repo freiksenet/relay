@@ -13,7 +13,7 @@ function live_user(user: User): LiveState<User> {}
 function live_generic_user(user: User): LiveState<Generic<User>> {}
 
 //extract
-function live_array_generic_optinal_user(user: User): LiveState<Array<Generic<?User>>> {}
+function live_array_generic_optinal_user(user: User): LiveState<Array<Generic<User | null | undefined>>> {}
 ==================================== OUTPUT ===================================
 Strong(
     FieldData {
@@ -205,34 +205,67 @@ Strong(
                                     type_parameters: Some(
                                         TypeParameterInstantiation {
                                             params: [
-                                                NullableTypeAnnotation(
-                                                    NullableTypeAnnotation {
-                                                        type_annotation: GenericTypeAnnotation(
-                                                            GenericTypeAnnotation {
-                                                                id: Identifier(
-                                                                    Identifier {
-                                                                        name: "User",
-                                                                        binding: None,
-                                                                        type_annotation: None,
-                                                                        loc: None,
-                                                                        range: SourceRange {
-                                                                            start: 422,
-                                                                            end: 426,
+                                                UnionTypeAnnotation(
+                                                    UnionTypeAnnotation {
+                                                        types: [
+                                                            GenericTypeAnnotation(
+                                                                GenericTypeAnnotation {
+                                                                    id: Identifier(
+                                                                        Identifier {
+                                                                            name: "User",
+                                                                            binding: None,
+                                                                            type_annotation: None,
+                                                                            loc: None,
+                                                                            range: SourceRange {
+                                                                                start: 421,
+                                                                                end: 425,
+                                                                            },
                                                                         },
+                                                                    ),
+                                                                    type_parameters: None,
+                                                                    loc: None,
+                                                                    range: SourceRange {
+                                                                        start: 421,
+                                                                        end: 425,
                                                                     },
-                                                                ),
-                                                                type_parameters: None,
-                                                                loc: None,
-                                                                range: SourceRange {
-                                                                    start: 422,
-                                                                    end: 426,
                                                                 },
-                                                            },
-                                                        ),
+                                                            ),
+                                                            NullLiteralTypeAnnotation(
+                                                                NullLiteralTypeAnnotation {
+                                                                    loc: None,
+                                                                    range: SourceRange {
+                                                                        start: 428,
+                                                                        end: 432,
+                                                                    },
+                                                                },
+                                                            ),
+                                                            GenericTypeAnnotation(
+                                                                GenericTypeAnnotation {
+                                                                    id: Identifier(
+                                                                        Identifier {
+                                                                            name: "undefined",
+                                                                            binding: None,
+                                                                            type_annotation: None,
+                                                                            loc: None,
+                                                                            range: SourceRange {
+                                                                                start: 435,
+                                                                                end: 444,
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                    type_parameters: None,
+                                                                    loc: None,
+                                                                    range: SourceRange {
+                                                                        start: 435,
+                                                                        end: 444,
+                                                                    },
+                                                                },
+                                                            ),
+                                                        ],
                                                         loc: None,
                                                         range: SourceRange {
                                                             start: 421,
-                                                            end: 426,
+                                                            end: 444,
                                                         },
                                                     },
                                                 ),
@@ -240,14 +273,14 @@ Strong(
                                             loc: None,
                                             range: SourceRange {
                                                 start: 420,
-                                                end: 427,
+                                                end: 445,
                                             },
                                         },
                                     ),
                                     loc: None,
                                     range: SourceRange {
                                         start: 413,
-                                        end: 427,
+                                        end: 445,
                                     },
                                 },
                             ),
@@ -255,14 +288,14 @@ Strong(
                         loc: None,
                         range: SourceRange {
                             start: 412,
-                            end: 428,
+                            end: 446,
                         },
                     },
                 ),
                 loc: None,
                 range: SourceRange {
                     start: 407,
-                    end: 428,
+                    end: 446,
                 },
             },
         ),
@@ -292,7 +325,7 @@ Strong(
         ),
         arguments: None,
         is_live: Some(
-            <generated>:397:429,
+            <generated>:397:447,
         ),
     },
 )

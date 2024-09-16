@@ -12,4 +12,4 @@ function live_user(user: User): LiveState<User> {}
 function live_generic_user(user: User): LiveState<Generic<User>> {}
 
 //extract
-function live_array_generic_optinal_user(user: User): LiveState<Array<Generic<User | undefined>>> {}
+function live_array_generic_optinal_user(user: User): LiveState<Array<Generic<User | null | undefined>>> {}

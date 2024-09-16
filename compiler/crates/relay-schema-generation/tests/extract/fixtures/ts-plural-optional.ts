@@ -10,10 +10,10 @@
 function plural_string(user: User): Array<string> {}
 
 //extract
-function plural_optional_string(user: User): Array<?string> {}
+function plural_optional_string(user: User): Array<string | null | undefined> {}
 
 //extract
-function optional_plural_string(user: User): Array<string> | undefined {}
+function optional_plural_string(user: User): Array<string> | null | undefined {}
 
 //extract
-function optional_plural_optional_string(user: User): Array<string | undefined> | undefined {}
+function optional_plural_optional_string(user: User): Array<string | null | undefined> | null | undefined {}

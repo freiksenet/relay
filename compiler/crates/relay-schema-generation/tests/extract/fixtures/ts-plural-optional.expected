@@ -11,13 +11,13 @@
 function plural_string(user: User): Array<string> {}
 
 //extract
-function plural_optional_string(user: User): Array<?string> {}
+function plural_optional_string(user: User): Array<string | null | undefined> {}
 
 //extract
-function optional_plural_string(user: User): ?Array<string> {}
+function optional_plural_string(user: User): Array<string> | null | undefined {}
 
 //extract
-function optional_plural_optional_string(user: User): ?Array<?string> {}
+function optional_plural_optional_string(user: User): Array<string | null | undefined> | null | undefined {}
 ==================================== OUTPUT ===================================
 Strong(
     FieldData {
@@ -118,21 +118,54 @@ Strong(
                 type_parameters: Some(
                     TypeParameterInstantiation {
                         params: [
-                            NullableTypeAnnotation(
-                                NullableTypeAnnotation {
-                                    type_annotation: StringTypeAnnotation(
-                                        StringTypeAnnotation {
-                                            loc: None,
-                                            range: SourceRange {
-                                                start: 319,
-                                                end: 325,
+                            UnionTypeAnnotation(
+                                UnionTypeAnnotation {
+                                    types: [
+                                        StringTypeAnnotation(
+                                            StringTypeAnnotation {
+                                                loc: None,
+                                                range: SourceRange {
+                                                    start: 318,
+                                                    end: 324,
+                                                },
                                             },
-                                        },
-                                    ),
+                                        ),
+                                        NullLiteralTypeAnnotation(
+                                            NullLiteralTypeAnnotation {
+                                                loc: None,
+                                                range: SourceRange {
+                                                    start: 327,
+                                                    end: 331,
+                                                },
+                                            },
+                                        ),
+                                        GenericTypeAnnotation(
+                                            GenericTypeAnnotation {
+                                                id: Identifier(
+                                                    Identifier {
+                                                        name: "undefined",
+                                                        binding: None,
+                                                        type_annotation: None,
+                                                        loc: None,
+                                                        range: SourceRange {
+                                                            start: 334,
+                                                            end: 343,
+                                                        },
+                                                    },
+                                                ),
+                                                type_parameters: None,
+                                                loc: None,
+                                                range: SourceRange {
+                                                    start: 334,
+                                                    end: 343,
+                                                },
+                                            },
+                                        ),
+                                    ],
                                     loc: None,
                                     range: SourceRange {
                                         start: 318,
-                                        end: 325,
+                                        end: 343,
                                     },
                                 },
                             ),
@@ -140,14 +173,14 @@ Strong(
                         loc: None,
                         range: SourceRange {
                             start: 317,
-                            end: 326,
+                            end: 344,
                         },
                     },
                 ),
                 loc: None,
                 range: SourceRange {
                     start: 312,
-                    end: 326,
+                    end: 344,
                 },
             },
         ),
@@ -183,56 +216,89 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:350:372,
+            location: <generated>:368:390,
             item: "optional_plural_string",
         },
-        return_type: NullableTypeAnnotation(
-            NullableTypeAnnotation {
-                type_annotation: GenericTypeAnnotation(
-                    GenericTypeAnnotation {
-                        id: Identifier(
-                            Identifier {
-                                name: "Array",
-                                binding: None,
-                                type_annotation: None,
-                                loc: None,
-                                range: SourceRange {
-                                    start: 387,
-                                    end: 392,
+        return_type: UnionTypeAnnotation(
+            UnionTypeAnnotation {
+                types: [
+                    GenericTypeAnnotation(
+                        GenericTypeAnnotation {
+                            id: Identifier(
+                                Identifier {
+                                    name: "Array",
+                                    binding: None,
+                                    type_annotation: None,
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 404,
+                                        end: 409,
+                                    },
                                 },
-                            },
-                        ),
-                        type_parameters: Some(
-                            TypeParameterInstantiation {
-                                params: [
-                                    StringTypeAnnotation(
-                                        StringTypeAnnotation {
-                                            loc: None,
-                                            range: SourceRange {
-                                                start: 393,
-                                                end: 399,
+                            ),
+                            type_parameters: Some(
+                                TypeParameterInstantiation {
+                                    params: [
+                                        StringTypeAnnotation(
+                                            StringTypeAnnotation {
+                                                loc: None,
+                                                range: SourceRange {
+                                                    start: 410,
+                                                    end: 416,
+                                                },
                                             },
-                                        },
-                                    ),
-                                ],
-                                loc: None,
-                                range: SourceRange {
-                                    start: 392,
-                                    end: 400,
+                                        ),
+                                    ],
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 409,
+                                        end: 417,
+                                    },
                                 },
+                            ),
+                            loc: None,
+                            range: SourceRange {
+                                start: 404,
+                                end: 417,
                             },
-                        ),
-                        loc: None,
-                        range: SourceRange {
-                            start: 387,
-                            end: 400,
                         },
-                    },
-                ),
+                    ),
+                    NullLiteralTypeAnnotation(
+                        NullLiteralTypeAnnotation {
+                            loc: None,
+                            range: SourceRange {
+                                start: 420,
+                                end: 424,
+                            },
+                        },
+                    ),
+                    GenericTypeAnnotation(
+                        GenericTypeAnnotation {
+                            id: Identifier(
+                                Identifier {
+                                    name: "undefined",
+                                    binding: None,
+                                    type_annotation: None,
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 427,
+                                        end: 436,
+                                    },
+                                },
+                            ),
+                            type_parameters: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 427,
+                                end: 436,
+                            },
+                        },
+                    ),
+                ],
                 loc: None,
                 range: SourceRange {
-                    start: 386,
-                    end: 400,
+                    start: 404,
+                    end: 436,
                 },
             },
         ),
@@ -246,16 +312,16 @@ Strong(
                             type_annotation: None,
                             loc: None,
                             range: SourceRange {
-                                start: 379,
-                                end: 383,
+                                start: 397,
+                                end: 401,
                             },
                         },
                     ),
                     type_parameters: None,
                     loc: None,
                     range: SourceRange {
-                        start: 379,
-                        end: 383,
+                        start: 397,
+                        end: 401,
                     },
                 },
             ),
@@ -268,65 +334,131 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:424:455,
+            location: <generated>:460:491,
             item: "optional_plural_optional_string",
         },
-        return_type: NullableTypeAnnotation(
-            NullableTypeAnnotation {
-                type_annotation: GenericTypeAnnotation(
-                    GenericTypeAnnotation {
-                        id: Identifier(
-                            Identifier {
-                                name: "Array",
-                                binding: None,
-                                type_annotation: None,
-                                loc: None,
-                                range: SourceRange {
-                                    start: 470,
-                                    end: 475,
+        return_type: UnionTypeAnnotation(
+            UnionTypeAnnotation {
+                types: [
+                    GenericTypeAnnotation(
+                        GenericTypeAnnotation {
+                            id: Identifier(
+                                Identifier {
+                                    name: "Array",
+                                    binding: None,
+                                    type_annotation: None,
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 505,
+                                        end: 510,
+                                    },
                                 },
-                            },
-                        ),
-                        type_parameters: Some(
-                            TypeParameterInstantiation {
-                                params: [
-                                    NullableTypeAnnotation(
-                                        NullableTypeAnnotation {
-                                            type_annotation: StringTypeAnnotation(
-                                                StringTypeAnnotation {
-                                                    loc: None,
-                                                    range: SourceRange {
-                                                        start: 477,
-                                                        end: 483,
-                                                    },
+                            ),
+                            type_parameters: Some(
+                                TypeParameterInstantiation {
+                                    params: [
+                                        UnionTypeAnnotation(
+                                            UnionTypeAnnotation {
+                                                types: [
+                                                    StringTypeAnnotation(
+                                                        StringTypeAnnotation {
+                                                            loc: None,
+                                                            range: SourceRange {
+                                                                start: 511,
+                                                                end: 517,
+                                                            },
+                                                        },
+                                                    ),
+                                                    NullLiteralTypeAnnotation(
+                                                        NullLiteralTypeAnnotation {
+                                                            loc: None,
+                                                            range: SourceRange {
+                                                                start: 520,
+                                                                end: 524,
+                                                            },
+                                                        },
+                                                    ),
+                                                    GenericTypeAnnotation(
+                                                        GenericTypeAnnotation {
+                                                            id: Identifier(
+                                                                Identifier {
+                                                                    name: "undefined",
+                                                                    binding: None,
+                                                                    type_annotation: None,
+                                                                    loc: None,
+                                                                    range: SourceRange {
+                                                                        start: 527,
+                                                                        end: 536,
+                                                                    },
+                                                                },
+                                                            ),
+                                                            type_parameters: None,
+                                                            loc: None,
+                                                            range: SourceRange {
+                                                                start: 527,
+                                                                end: 536,
+                                                            },
+                                                        },
+                                                    ),
+                                                ],
+                                                loc: None,
+                                                range: SourceRange {
+                                                    start: 511,
+                                                    end: 536,
                                                 },
-                                            ),
-                                            loc: None,
-                                            range: SourceRange {
-                                                start: 476,
-                                                end: 483,
                                             },
-                                        },
-                                    ),
-                                ],
-                                loc: None,
-                                range: SourceRange {
-                                    start: 475,
-                                    end: 484,
+                                        ),
+                                    ],
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 510,
+                                        end: 537,
+                                    },
                                 },
+                            ),
+                            loc: None,
+                            range: SourceRange {
+                                start: 505,
+                                end: 537,
                             },
-                        ),
-                        loc: None,
-                        range: SourceRange {
-                            start: 470,
-                            end: 484,
                         },
-                    },
-                ),
+                    ),
+                    NullLiteralTypeAnnotation(
+                        NullLiteralTypeAnnotation {
+                            loc: None,
+                            range: SourceRange {
+                                start: 540,
+                                end: 544,
+                            },
+                        },
+                    ),
+                    GenericTypeAnnotation(
+                        GenericTypeAnnotation {
+                            id: Identifier(
+                                Identifier {
+                                    name: "undefined",
+                                    binding: None,
+                                    type_annotation: None,
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 547,
+                                        end: 556,
+                                    },
+                                },
+                            ),
+                            type_parameters: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 547,
+                                end: 556,
+                            },
+                        },
+                    ),
+                ],
                 loc: None,
                 range: SourceRange {
-                    start: 469,
-                    end: 484,
+                    start: 505,
+                    end: 556,
                 },
             },
         ),
@@ -340,16 +472,16 @@ Strong(
                             type_annotation: None,
                             loc: None,
                             range: SourceRange {
-                                start: 462,
-                                end: 466,
+                                start: 498,
+                                end: 502,
                             },
                         },
                     ),
                     type_parameters: None,
                     loc: None,
                     range: SourceRange {
-                        start: 462,
-                        end: 466,
+                        start: 498,
+                        end: 502,
                     },
                 },
             ),
