@@ -20,6 +20,7 @@ members = [
     "crates/relay-compiler-playground",
     "crates/relay-lsp",
     "crates/relay-schema",
+    "crates/relay-schema-generation",
     "crates/relay-test-schema",
     "crates/relay-transforms",
     "crates/relay-typegen",
