@@ -16,6 +16,14 @@ path = "tests/docblock_test.rs"
 name = "relay_schema_generation_extract_test"
 path = "tests/extract_test.rs"
 
+[[test]]
+name = "relay_schema_generation_ts_docblock_test"
+path = "tests/ts_docblock_test.rs"
+
+[[test]]
+name = "relay_schema_generation_ts_extract_test"
+path = "tests/ts_extract_test.rs"
+
 [dependencies]
 common = { path = "../common" }
 docblock-shared = { path = "../docblock-shared" }

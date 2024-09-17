@@ -42,6 +42,8 @@ crates/relay-lsp/tests/hover
 crates/relay-lsp/tests/rename
 crates/relay-schema-generation/tests/docblock
 crates/relay-schema-generation/tests/extract
+crates/relay-schema-generation/tests/ts_docblock
+crates/relay-schema-generation/tests/ts_extract
 crates/relay-transforms/tests/apply_fragment_arguments
 crates/relay-transforms/tests/assignable_directive
 crates/relay-transforms/tests/assignable_fragment_spread

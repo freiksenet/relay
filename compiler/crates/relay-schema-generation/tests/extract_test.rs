@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<04c824c2f2b6093710c212428e8d3378>>
+ * @generated SignedSource<<caafbf6cc546eaff56e3bf378a475e26>>
  */
 
 mod extract;
@@ -45,46 +45,4 @@ async fn primitives() {
     let input = include_str!("extract/fixtures/primitives.js");
     let expected = include_str!("extract/fixtures/primitives.expected");
     test_fixture(transform_fixture, file!(), "primitives.js", "extract/fixtures/primitives.expected", input, expected).await;
-}
-
-#[tokio::test]
-async fn ts_arguments() {
-    let input = include_str!("extract/fixtures/ts-arguments.ts");
-    let expected = include_str!("extract/fixtures/ts-arguments.expected");
-    test_fixture(transform_fixture, file!(), "ts-arguments.ts", "extract/fixtures/ts-arguments.expected", input, expected).await;
-}
-
-#[tokio::test]
-async fn ts_functions_unsupported() {
-    let input = include_str!("extract/fixtures/ts-functions.unsupported.ts");
-    let expected = include_str!("extract/fixtures/ts-functions.unsupported.expected");
-    test_fixture(transform_fixture, file!(), "ts-functions.unsupported.ts", "extract/fixtures/ts-functions.unsupported.expected", input, expected).await;
-}
-
-#[tokio::test]
-async fn ts_generics() {
-    let input = include_str!("extract/fixtures/ts-generics.ts");
-    let expected = include_str!("extract/fixtures/ts-generics.expected");
-    test_fixture(transform_fixture, file!(), "ts-generics.ts", "extract/fixtures/ts-generics.expected", input, expected).await;
-}
-
-#[tokio::test]
-async fn ts_plural_optional() {
-    let input = include_str!("extract/fixtures/ts-plural-optional.ts");
-    let expected = include_str!("extract/fixtures/ts-plural-optional.expected");
-    test_fixture(transform_fixture, file!(), "ts-plural-optional.ts", "extract/fixtures/ts-plural-optional.expected", input, expected).await;
-}
-
-#[tokio::test]
-async fn ts_primitives() {
-    let input = include_str!("extract/fixtures/ts-primitives.ts");
-    let expected = include_str!("extract/fixtures/ts-primitives.expected");
-    test_fixture(transform_fixture, file!(), "ts-primitives.ts", "extract/fixtures/ts-primitives.expected", input, expected).await;
-}
-
-#[tokio::test]
-async fn ts_primitives_optional() {
-    let input = include_str!("extract/fixtures/ts-primitives-optional.ts");
-    let expected = include_str!("extract/fixtures/ts-primitives-optional.expected");
-    test_fixture(transform_fixture, file!(), "ts-primitives-optional.ts", "extract/fixtures/ts-primitives-optional.expected", input, expected).await;
 }
