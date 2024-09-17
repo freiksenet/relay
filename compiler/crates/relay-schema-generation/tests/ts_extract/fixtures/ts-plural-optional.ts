@@ -17,3 +17,9 @@ function optional_plural_string(user: User): Array<string> | null | undefined {}
 
 //extract
 function optional_plural_optional_string(user: User): Array<string | null | undefined> | null | undefined {}
+
+function ignored(user: User): Array<string | null | undefined> | null | undefined {}
+
+// Multiple top comments
+// this another
+function ignored(user: User): Array<string | null | undefined> | null | undefined {}
