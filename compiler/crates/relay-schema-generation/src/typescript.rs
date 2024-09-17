@@ -55,6 +55,7 @@ use relay_docblock::TerseRelayResolverIr;
 use relay_docblock::UnpopulatedIrField;
 use relay_docblock::WeakObjectIr;
 use rustc_hash::FxHashMap;
+use schema_extractor::SchemaExtractor;
 use swc_common::source_map::SmallPos;
 use swc_common::sync::Lrc;
 use swc_common::BytePos;
@@ -119,8 +120,22 @@ impl TSRelayResolverExtractor {
 
     pub fn extract_function(
         &self,
-        _node: &swc_ecma_ast::FnDecl,
+        node: &swc_ecma_ast::FnDecl,
     ) -> DiagnosticsResult<ResolverFlowData> {
+        let ident = node.ident.sym.as_str();
+
+        let field_name = WithLocation {
+            item: ident.intern(),
+            location: Location::new(self.current_location.clone(), to_relay_span(node.span())),
+        };
+
+        let return_type_annotation = node.function.return_type.as_ref().ok_or_else(|| {
+            Diagnostic::error(
+                SchemaGenerationError::MissingReturnType,
+                Location::new(self.current_location.clone(), to_relay_span(node.span())),
+            )
+        })?;
+
         todo!()
     }
 }
