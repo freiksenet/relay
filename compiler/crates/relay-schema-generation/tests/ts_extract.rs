@@ -17,7 +17,6 @@ use hermes_parser::parse;
 use hermes_parser::ParserDialect;
 use hermes_parser::ParserFlags;
 use relay_schema_generation::FlowRelayResolverExtractor;
-use relay_schema_generation::RelayResolverExtractor;
 
 pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> {
     let result = parse(
