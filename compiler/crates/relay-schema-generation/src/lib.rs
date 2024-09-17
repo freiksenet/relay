@@ -133,8 +133,6 @@ pub trait RelayResolverExtractor {
     ) -> DiagnosticsResult<()>;
 
     fn resolve(self) -> DiagnosticsResult<(Vec<DocblockIr>, Vec<TerseRelayResolverIr>)>;
-
-    fn extract_function(&self, node: &Function) -> DiagnosticsResult<ResolverFlowData>;
 }
 
 pub struct FlowRelayResolverExtractor {
@@ -487,6 +485,138 @@ impl FlowRelayResolverExtractor {
             }
         }
     }
+
+    pub fn extract_function(&self, node: &Function) -> DiagnosticsResult<ResolverFlowData> {
+        let ident = node.id.as_ref().ok_or_else(|| {
+            Diagnostic::error(
+                SchemaGenerationError::MissingFunctionName,
+                self.to_location(node),
+            )
+        })?;
+        let field_name = WithLocation {
+            item: (&ident.name).intern(),
+            location: self.to_location(ident),
+        };
+
+        let return_type_annotation = node.return_type.as_ref().ok_or_else(|| {
+            Diagnostic::error(
+                SchemaGenerationError::MissingReturnType,
+                self.to_location(node),
+            )
+        })?;
+        let flow_return_type = self.unwrap_annotation_enum(return_type_annotation)?;
+        let (return_type_with_live, is_optional) =
+            schema_extractor::unwrap_nullable_type(flow_return_type);
+
+        // unwrap is_live from the return type
+        let (return_type, is_live) = match return_type_with_live {
+            FlowTypeAnnotation::GenericTypeAnnotation(type_node) => {
+                let name = schema_extractor::get_identifier_for_flow_generic(WithLocation {
+                    item: type_node,
+                    location: self.to_location(type_node.as_ref()),
+                })?;
+                if let Some(type_param) = &type_node.type_parameters {
+                    match type_param.params.as_slice() {
+                        [param] => {
+                            if name.item.lookup() == LIVE_FLOW_TYPE_NAME {
+                                if is_optional {
+                                    return Err(vec![Diagnostic::error(
+                                        SchemaGenerationError::NoOptionalLiveType,
+                                        name.location,
+                                    )]);
+                                }
+                                (param, Some(name.location))
+                            } else {
+                                (flow_return_type, None)
+                            }
+                        }
+                        _ => {
+                            // Does not support multiple type params for now
+                            return self.error_result(
+                                SchemaGenerationError::UnsupportedType {
+                                    name: "Multiple type params",
+                                },
+                                type_node.as_ref(),
+                            );
+                        }
+                    }
+                } else {
+                    (flow_return_type, None)
+                }
+            }
+            _ => (flow_return_type, None),
+        };
+
+        let entity_type = {
+            if node.params.is_empty() {
+                None
+            } else {
+                let param = &node.params[0];
+                if let Pattern::Identifier(identifier) = param {
+                    let type_annotation = identifier.type_annotation.as_ref().ok_or_else(|| {
+                        Diagnostic::error(
+                            SchemaGenerationError::MissingParamType,
+                            self.to_location(param),
+                        )
+                    })?;
+                    if let TypeAnnotationEnum::FlowTypeAnnotation(type_) =
+                        &type_annotation.type_annotation
+                    {
+                        Some(type_.clone())
+                    } else {
+                        return self.error_result(
+                            SchemaGenerationError::UnsupportedType { name: param.name() },
+                            param,
+                        );
+                    }
+                } else {
+                    return self.error_result(
+                        SchemaGenerationError::UnsupportedType { name: param.name() },
+                        param,
+                    );
+                }
+            }
+        };
+
+        let arguments = if node.params.len() > 1 {
+            let param = &node.params[0];
+            let arg_param = &node.params[1];
+            let args = if let Pattern::Identifier(identifier) = arg_param {
+                let type_annotation = identifier.type_annotation.as_ref().ok_or_else(|| {
+                    Diagnostic::error(
+                        SchemaGenerationError::MissingParamType,
+                        self.to_location(param),
+                    )
+                })?;
+                if let TypeAnnotationEnum::FlowTypeAnnotation(type_) =
+                    &type_annotation.type_annotation
+                {
+                    Some(type_)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            if args.is_none() {
+                return self.error_result(
+                    SchemaGenerationError::IncorrectArgumentsDefinition,
+                    arg_param,
+                );
+            }
+            args
+        } else {
+            None
+        };
+
+        Ok(ResolverFlowData::Strong(FieldData {
+            field_name,
+            return_type: return_type.clone(),
+            entity_type,
+            arguments: arguments.cloned(),
+            is_live,
+        }))
+    }
 }
 
 impl RelayResolverExtractor for FlowRelayResolverExtractor {
@@ -763,143 +893,90 @@ impl RelayResolverExtractor for FlowRelayResolverExtractor {
             self.resolved_field_definitions,
         ))
     }
-
-    fn extract_function(&self, node: &Function) -> DiagnosticsResult<ResolverFlowData> {
-        let ident = node.id.as_ref().ok_or_else(|| {
-            Diagnostic::error(
-                SchemaGenerationError::MissingFunctionName,
-                self.to_location(node),
-            )
-        })?;
-        let field_name = WithLocation {
-            item: (&ident.name).intern(),
-            location: self.to_location(ident),
-        };
-
-        let return_type_annotation = node.return_type.as_ref().ok_or_else(|| {
-            Diagnostic::error(
-                SchemaGenerationError::MissingReturnType,
-                self.to_location(node),
-            )
-        })?;
-        let flow_return_type = self.unwrap_annotation_enum(return_type_annotation)?;
-        let (return_type_with_live, is_optional) =
-            schema_extractor::unwrap_nullable_type(flow_return_type);
-
-        // unwrap is_live from the return type
-        let (return_type, is_live) = match return_type_with_live {
-            FlowTypeAnnotation::GenericTypeAnnotation(type_node) => {
-                let name = schema_extractor::get_identifier_for_flow_generic(WithLocation {
-                    item: type_node,
-                    location: self.to_location(type_node.as_ref()),
-                })?;
-                if let Some(type_param) = &type_node.type_parameters {
-                    match type_param.params.as_slice() {
-                        [param] => {
-                            if name.item.lookup() == LIVE_FLOW_TYPE_NAME {
-                                if is_optional {
-                                    return Err(vec![Diagnostic::error(
-                                        SchemaGenerationError::NoOptionalLiveType,
-                                        name.location,
-                                    )]);
-                                }
-                                (param, Some(name.location))
-                            } else {
-                                (flow_return_type, None)
-                            }
-                        }
-                        _ => {
-                            // Does not support multiple type params for now
-                            return self.error_result(
-                                SchemaGenerationError::UnsupportedType {
-                                    name: "Multiple type params",
-                                },
-                                type_node.as_ref(),
-                            );
-                        }
-                    }
-                } else {
-                    (flow_return_type, None)
-                }
-            }
-            _ => (flow_return_type, None),
-        };
-
-        let entity_type = {
-            if node.params.is_empty() {
-                None
-            } else {
-                let param = &node.params[0];
-                if let Pattern::Identifier(identifier) = param {
-                    let type_annotation = identifier.type_annotation.as_ref().ok_or_else(|| {
-                        Diagnostic::error(
-                            SchemaGenerationError::MissingParamType,
-                            self.to_location(param),
-                        )
-                    })?;
-                    if let TypeAnnotationEnum::FlowTypeAnnotation(type_) =
-                        &type_annotation.type_annotation
-                    {
-                        Some(type_.clone())
-                    } else {
-                        return self.error_result(
-                            SchemaGenerationError::UnsupportedType { name: param.name() },
-                            param,
-                        );
-                    }
-                } else {
-                    return self.error_result(
-                        SchemaGenerationError::UnsupportedType { name: param.name() },
-                        param,
-                    );
-                }
-            }
-        };
-
-        let arguments = if node.params.len() > 1 {
-            let param = &node.params[0];
-            let arg_param = &node.params[1];
-            let args = if let Pattern::Identifier(identifier) = arg_param {
-                let type_annotation = identifier.type_annotation.as_ref().ok_or_else(|| {
-                    Diagnostic::error(
-                        SchemaGenerationError::MissingParamType,
-                        self.to_location(param),
-                    )
-                })?;
-                if let TypeAnnotationEnum::FlowTypeAnnotation(type_) =
-                    &type_annotation.type_annotation
-                {
-                    Some(type_)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            if args.is_none() {
-                return self.error_result(
-                    SchemaGenerationError::IncorrectArgumentsDefinition,
-                    arg_param,
-                );
-            }
-            args
-        } else {
-            None
-        };
-
-        Ok(ResolverFlowData::Strong(FieldData {
-            field_name,
-            return_type: return_type.clone(),
-            entity_type,
-            arguments: arguments.cloned(),
-            is_live,
-        }))
-    }
 }
 
 impl SchemaExtractor for FlowRelayResolverExtractor {
     fn to_location<T: Range>(&self, node: &T) -> Location {
         to_location(self.current_location, node)
+    }
+}
+
+#[allow(dead_code)]
+pub struct TSTypeExtractor {
+    /// Cross module states
+    type_definitions: FxHashMap<ModuleResolutionKey, DocblockIr>,
+    unresolved_field_definitions: Vec<(UnresolvedTSFieldDefinition, SourceLocationKey)>,
+    resolved_field_definitions: Vec<TerseRelayResolverIr>,
+    module_resolutions: FxHashMap<SourceLocationKey, ModuleResolution>,
+
+    // Needs to keep track of source location because hermes_parser currently
+    // does not embed the information
+    current_location: SourceLocationKey,
+
+    // Used to map Flow types in return/argument types to GraphQL custom scalars
+    custom_scalar_map: FnvIndexMap<CustomType, ScalarName>,
+}
+
+#[allow(dead_code)]
+struct UnresolvedTSFieldDefinition {
+    entity_name: Option<WithLocation<StringKey>>,
+    field_name: WithLocation<StringKey>,
+    return_type: swc_ecma_ast::TsType,
+    arguments: Option<Vec<swc_ecma_ast::Param>>,
+    source_hash: ResolverSourceHash,
+    is_live: Option<Location>,
+    description: Option<WithLocation<StringKey>>,
+    deprecated: Option<IrField>,
+    root_fragment: Option<(WithLocation<FragmentDefinitionName>, Vec<Argument>)>,
+    entity_type: Option<WithLocation<StringKey>>,
+}
+
+impl Default for TSTypeExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TSTypeExtractor {
+    pub fn new() -> Self {
+        Self {
+            type_definitions: Default::default(),
+            unresolved_field_definitions: Default::default(),
+            resolved_field_definitions: vec![],
+            module_resolutions: Default::default(),
+            current_location: SourceLocationKey::generated(),
+            custom_scalar_map: FnvIndexMap::default(),
+        }
+    }
+
+    pub fn extract_function(
+        &self,
+        _node: &swc_ecma_ast::FnDecl,
+    ) -> DiagnosticsResult<ResolverFlowData> {
+        todo!()
+    }
+}
+
+impl RelayResolverExtractor for TSTypeExtractor {
+    fn set_custom_scalar_map(
+        &mut self,
+        custom_scalar_types: &FnvIndexMap<ScalarName, CustomType>,
+    ) -> DiagnosticsResult<()> {
+        self.custom_scalar_map = invert_custom_scalar_map(custom_scalar_types)?;
+        Ok(())
+    }
+
+    fn parse_document(
+        &mut self,
+        _text: &str,
+        _source_module_path: &str,
+        _fragment_definitions: Option<&Vec<ExecutableDefinition>>,
+    ) -> DiagnosticsResult<()> {
+        Ok(())
+    }
+
+    fn resolve(self) -> DiagnosticsResult<(Vec<DocblockIr>, Vec<TerseRelayResolverIr>)> {
+        Ok((Vec::new(), Vec::new()))
     }
 }
 
