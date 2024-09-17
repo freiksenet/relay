@@ -34,8 +34,8 @@ pub struct ImportExportVisitor {
     current_module_name: StringKey,
 }
 pub struct ModuleResolution {
-    imports: JSModules,
-    exports: JSModules,
+    pub imports: JSModules,
+    pub exports: JSModules,
 }
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, Copy, Serialize)]

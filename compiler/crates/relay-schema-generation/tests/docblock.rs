@@ -110,7 +110,7 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
     let err = diagnostics_to_sorted_string(&project_fixture, &errors);
 
     ok_out.sort();
-    Ok(ok_out.join("\n\n") + "\n\n" + &err)
+    Ok(ok_out.join("\n\n") + "\n\n" + err.as_str())
 }
 
 fn parse_document_definitions(content: &str, path: &Path) -> Vec<ExecutableDefinition> {

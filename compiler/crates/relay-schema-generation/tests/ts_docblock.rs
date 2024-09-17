@@ -29,8 +29,8 @@ use relay_config::ProjectName;
 use relay_docblock::extend_schema_with_resolver_type_system_definition;
 use relay_docblock::DocblockIr;
 use relay_docblock::ResolverFieldDocblockIr;
-use relay_schema_generation::TSTypeExtractor;
 use relay_schema_generation::RelayResolverExtractor;
+use relay_schema_generation::TSRelayResolverExtractor;
 use relay_test_schema::get_test_schema_with_extensions;
 
 type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
@@ -43,7 +43,9 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
     let project_fixture = ProjectFixture::deserialize(fixture.content);
 
     let custom_scalar_types = get_custom_scalar_types();
-    let mut extractor = TSTypeExtractor::new();
+
+    let mut extractor = TSRelayResolverExtractor::new();
+
     if let Err(err) = extractor.set_custom_scalar_map(&custom_scalar_types) {
         errors.extend(err);
     }
@@ -110,7 +112,7 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
     let err = diagnostics_to_sorted_string(&project_fixture, &errors);
 
     ok_out.sort();
-    Ok(ok_out.join("\n\n") + "\n\n" + &err)
+    Ok(ok_out.join("\n\n") + "\n\n" + err.as_str())
 }
 
 fn parse_document_definitions(content: &str, path: &Path) -> Vec<ExecutableDefinition> {

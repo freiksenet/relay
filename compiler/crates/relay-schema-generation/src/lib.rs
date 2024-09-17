@@ -11,6 +11,7 @@
 
 mod errors;
 mod find_resolver_imports;
+mod typescript;
 
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
@@ -90,6 +91,8 @@ use relay_docblock::UnpopulatedIrField;
 use relay_docblock::WeakObjectIr;
 use rustc_hash::FxHashMap;
 use schema_extractor::SchemaExtractor;
+
+pub use self::typescript::TSRelayResolverExtractor;
 
 pub static LIVE_FLOW_TYPE_NAME: &str = "LiveState";
 
@@ -898,85 +901,6 @@ impl RelayResolverExtractor for FlowRelayResolverExtractor {
 impl SchemaExtractor for FlowRelayResolverExtractor {
     fn to_location<T: Range>(&self, node: &T) -> Location {
         to_location(self.current_location, node)
-    }
-}
-
-#[allow(dead_code)]
-pub struct TSTypeExtractor {
-    /// Cross module states
-    type_definitions: FxHashMap<ModuleResolutionKey, DocblockIr>,
-    unresolved_field_definitions: Vec<(UnresolvedTSFieldDefinition, SourceLocationKey)>,
-    resolved_field_definitions: Vec<TerseRelayResolverIr>,
-    module_resolutions: FxHashMap<SourceLocationKey, ModuleResolution>,
-
-    // Needs to keep track of source location because hermes_parser currently
-    // does not embed the information
-    current_location: SourceLocationKey,
-
-    // Used to map Flow types in return/argument types to GraphQL custom scalars
-    custom_scalar_map: FnvIndexMap<CustomType, ScalarName>,
-}
-
-#[allow(dead_code)]
-struct UnresolvedTSFieldDefinition {
-    entity_name: Option<WithLocation<StringKey>>,
-    field_name: WithLocation<StringKey>,
-    return_type: swc_ecma_ast::TsType,
-    arguments: Option<Vec<swc_ecma_ast::Param>>,
-    source_hash: ResolverSourceHash,
-    is_live: Option<Location>,
-    description: Option<WithLocation<StringKey>>,
-    deprecated: Option<IrField>,
-    root_fragment: Option<(WithLocation<FragmentDefinitionName>, Vec<Argument>)>,
-    entity_type: Option<WithLocation<StringKey>>,
-}
-
-impl Default for TSTypeExtractor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TSTypeExtractor {
-    pub fn new() -> Self {
-        Self {
-            type_definitions: Default::default(),
-            unresolved_field_definitions: Default::default(),
-            resolved_field_definitions: vec![],
-            module_resolutions: Default::default(),
-            current_location: SourceLocationKey::generated(),
-            custom_scalar_map: FnvIndexMap::default(),
-        }
-    }
-
-    pub fn extract_function(
-        &self,
-        _node: &swc_ecma_ast::FnDecl,
-    ) -> DiagnosticsResult<ResolverFlowData> {
-        todo!()
-    }
-}
-
-impl RelayResolverExtractor for TSTypeExtractor {
-    fn set_custom_scalar_map(
-        &mut self,
-        custom_scalar_types: &FnvIndexMap<ScalarName, CustomType>,
-    ) -> DiagnosticsResult<()> {
-        self.custom_scalar_map = invert_custom_scalar_map(custom_scalar_types)?;
-        Ok(())
-    }
-
-    fn parse_document(
-        &mut self,
-        _text: &str,
-        _source_module_path: &str,
-        _fragment_definitions: Option<&Vec<ExecutableDefinition>>,
-    ) -> DiagnosticsResult<()> {
-        Ok(())
-    }
-
-    fn resolve(self) -> DiagnosticsResult<(Vec<DocblockIr>, Vec<TerseRelayResolverIr>)> {
-        Ok((Vec::new(), Vec::new()))
     }
 }
 
