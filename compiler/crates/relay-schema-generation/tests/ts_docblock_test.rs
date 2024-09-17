@@ -4,13 +4,41 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<d426d6c085628c0ff5e02b66c4381e01>>
+ * @generated SignedSource<<1b3616574971fceedda0ab403c14d88b>>
  */
 
 mod ts_docblock;
 
 use ts_docblock::transform_fixture;
 use fixture_tests::test_fixture;
+
+#[tokio::test]
+async fn return_strong_object_directly_error() {
+    let input = include_str!("ts_docblock/fixtures/return-strong-object-directly.error.ts");
+    let expected = include_str!("ts_docblock/fixtures/return-strong-object-directly.error.expected");
+    test_fixture(transform_fixture, file!(), "return-strong-object-directly.error.ts", "ts_docblock/fixtures/return-strong-object-directly.error.expected", input, expected).await;
+}
+
+#[tokio::test]
+async fn root_fragment() {
+    let input = include_str!("ts_docblock/fixtures/root-fragment.input");
+    let expected = include_str!("ts_docblock/fixtures/root-fragment.expected");
+    test_fixture(transform_fixture, file!(), "root-fragment.input", "ts_docblock/fixtures/root-fragment.expected", input, expected).await;
+}
+
+#[tokio::test]
+async fn root_fragment_arguments() {
+    let input = include_str!("ts_docblock/fixtures/root-fragment-arguments.ts");
+    let expected = include_str!("ts_docblock/fixtures/root-fragment-arguments.expected");
+    test_fixture(transform_fixture, file!(), "root-fragment-arguments.ts", "ts_docblock/fixtures/root-fragment-arguments.expected", input, expected).await;
+}
+
+#[tokio::test]
+async fn root_fragment_arguments_error() {
+    let input = include_str!("ts_docblock/fixtures/root-fragment-arguments.error.ts");
+    let expected = include_str!("ts_docblock/fixtures/root-fragment-arguments.error.expected");
+    test_fixture(transform_fixture, file!(), "root-fragment-arguments.error.ts", "ts_docblock/fixtures/root-fragment-arguments.error.expected", input, expected).await;
+}
 
 #[tokio::test]
 async fn ts_arguments() {
