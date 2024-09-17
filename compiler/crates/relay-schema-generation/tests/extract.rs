@@ -16,6 +16,7 @@ use hermes_estree::Node;
 use hermes_parser::parse;
 use hermes_parser::ParserDialect;
 use hermes_parser::ParserFlags;
+use relay_schema_generation::FlowRelayResolverExtractor;
 use relay_schema_generation::RelayResolverExtractor;
 
 pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> {
@@ -34,7 +35,7 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
 
     let attached_comments = find_nodes_after_comments(&result.ast, &result.comments);
 
-    let extractor = RelayResolverExtractor::new();
+    let extractor = FlowRelayResolverExtractor::new();
 
     let output = attached_comments
         .into_iter()

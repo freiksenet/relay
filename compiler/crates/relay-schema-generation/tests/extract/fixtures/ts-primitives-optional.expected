@@ -1,0 +1,256 @@
+==================================== INPUT ====================================
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+//extract
+function id(user: User): ID | null {}
+
+//extract
+function number(user: User): number | undefined {}
+
+//extract
+function string(user: User): string | null | undefined {}
+==================================== OUTPUT ===================================
+Strong(
+    FieldData {
+        field_name: WithLocation {
+            location: <generated>:211:213,
+            item: "id",
+        },
+        return_type: UnionTypeAnnotation(
+            UnionTypeAnnotation {
+                types: [
+                    GenericTypeAnnotation(
+                        GenericTypeAnnotation {
+                            id: Identifier(
+                                Identifier {
+                                    name: "ID",
+                                    binding: None,
+                                    type_annotation: None,
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 227,
+                                        end: 229,
+                                    },
+                                },
+                            ),
+                            type_parameters: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 227,
+                                end: 229,
+                            },
+                        },
+                    ),
+                    NullLiteralTypeAnnotation(
+                        NullLiteralTypeAnnotation {
+                            loc: None,
+                            range: SourceRange {
+                                start: 232,
+                                end: 236,
+                            },
+                        },
+                    ),
+                ],
+                loc: None,
+                range: SourceRange {
+                    start: 227,
+                    end: 236,
+                },
+            },
+        ),
+        entity_type: Some(
+            GenericTypeAnnotation(
+                GenericTypeAnnotation {
+                    id: Identifier(
+                        Identifier {
+                            name: "User",
+                            binding: None,
+                            type_annotation: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 220,
+                                end: 224,
+                            },
+                        },
+                    ),
+                    type_parameters: None,
+                    loc: None,
+                    range: SourceRange {
+                        start: 220,
+                        end: 224,
+                    },
+                },
+            ),
+        ),
+        arguments: None,
+        is_live: None,
+    },
+)
+
+Strong(
+    FieldData {
+        field_name: WithLocation {
+            location: <generated>:260:266,
+            item: "number",
+        },
+        return_type: UnionTypeAnnotation(
+            UnionTypeAnnotation {
+                types: [
+                    NumberTypeAnnotation(
+                        NumberTypeAnnotation {
+                            loc: None,
+                            range: SourceRange {
+                                start: 280,
+                                end: 286,
+                            },
+                        },
+                    ),
+                    GenericTypeAnnotation(
+                        GenericTypeAnnotation {
+                            id: Identifier(
+                                Identifier {
+                                    name: "undefined",
+                                    binding: None,
+                                    type_annotation: None,
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 289,
+                                        end: 298,
+                                    },
+                                },
+                            ),
+                            type_parameters: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 289,
+                                end: 298,
+                            },
+                        },
+                    ),
+                ],
+                loc: None,
+                range: SourceRange {
+                    start: 280,
+                    end: 298,
+                },
+            },
+        ),
+        entity_type: Some(
+            GenericTypeAnnotation(
+                GenericTypeAnnotation {
+                    id: Identifier(
+                        Identifier {
+                            name: "User",
+                            binding: None,
+                            type_annotation: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 273,
+                                end: 277,
+                            },
+                        },
+                    ),
+                    type_parameters: None,
+                    loc: None,
+                    range: SourceRange {
+                        start: 273,
+                        end: 277,
+                    },
+                },
+            ),
+        ),
+        arguments: None,
+        is_live: None,
+    },
+)
+
+Strong(
+    FieldData {
+        field_name: WithLocation {
+            location: <generated>:322:328,
+            item: "string",
+        },
+        return_type: UnionTypeAnnotation(
+            UnionTypeAnnotation {
+                types: [
+                    StringTypeAnnotation(
+                        StringTypeAnnotation {
+                            loc: None,
+                            range: SourceRange {
+                                start: 342,
+                                end: 348,
+                            },
+                        },
+                    ),
+                    NullLiteralTypeAnnotation(
+                        NullLiteralTypeAnnotation {
+                            loc: None,
+                            range: SourceRange {
+                                start: 351,
+                                end: 355,
+                            },
+                        },
+                    ),
+                    GenericTypeAnnotation(
+                        GenericTypeAnnotation {
+                            id: Identifier(
+                                Identifier {
+                                    name: "undefined",
+                                    binding: None,
+                                    type_annotation: None,
+                                    loc: None,
+                                    range: SourceRange {
+                                        start: 358,
+                                        end: 367,
+                                    },
+                                },
+                            ),
+                            type_parameters: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 358,
+                                end: 367,
+                            },
+                        },
+                    ),
+                ],
+                loc: None,
+                range: SourceRange {
+                    start: 342,
+                    end: 367,
+                },
+            },
+        ),
+        entity_type: Some(
+            GenericTypeAnnotation(
+                GenericTypeAnnotation {
+                    id: Identifier(
+                        Identifier {
+                            name: "User",
+                            binding: None,
+                            type_annotation: None,
+                            loc: None,
+                            range: SourceRange {
+                                start: 335,
+                                end: 339,
+                            },
+                        },
+                    ),
+                    type_parameters: None,
+                    loc: None,
+                    range: SourceRange {
+                        start: 335,
+                        end: 339,
+                    },
+                },
+            ),
+        ),
+        arguments: None,
+        is_live: None,
+    },
+)
