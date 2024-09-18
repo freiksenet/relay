@@ -9,6 +9,8 @@
 
 use std::fs::read_to_string;
 
+use ::intern::intern;
+use ::intern::string_key::Intern;
 use ::intern::string_key::StringKey;
 use common::Diagnostic;
 use common::DiagnosticsResult;
@@ -22,6 +24,7 @@ use docblock_shared::DEPRECATED_FIELD;
 use docblock_syntax::parse_docblock;
 use docblock_syntax::DocblockAST;
 use docblock_syntax::DocblockSection;
+use errors::try_all;
 use fnv::FnvBuildHasher;
 use graphql_ir::FragmentDefinitionName;
 use graphql_syntax::ConstantArgument;
@@ -40,8 +43,8 @@ use graphql_syntax::StringNode;
 use graphql_syntax::Token;
 use graphql_syntax::TokenKind;
 use graphql_syntax::TypeAnnotation;
+use hermes_estree::SourceRange;
 use indexmap::IndexMap;
-use intern::string_key::Intern;
 use lazy_static::lazy_static;
 use relay_config::CustomType;
 use relay_config::CustomTypeImport;
@@ -55,6 +58,7 @@ use relay_docblock::TerseRelayResolverIr;
 use relay_docblock::UnpopulatedIrField;
 use relay_docblock::WeakObjectIr;
 use rustc_hash::FxHashMap;
+use swc_common::comments::Comments;
 use swc_common::source_map::SmallPos;
 use swc_common::sync::Lrc;
 use swc_common::BytePos;
@@ -65,6 +69,8 @@ use crate::find_resolver_imports::ImportExportVisitor;
 use crate::find_resolver_imports::JSImportType;
 use crate::find_resolver_imports::ModuleResolution;
 use crate::find_resolver_imports::ModuleResolutionKey;
+use crate::get_deprecated;
+use crate::get_description;
 use crate::invert_custom_scalar_map;
 use crate::FnvIndexMap;
 use crate::RelayResolverExtractor;
@@ -173,7 +179,37 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
 
         let module_resolution = extract_module_resolution(&parsed_module, &self.current_location);
 
-        println!("{:?}", comments);
+        let result = try_all(parsed_module.body.iter().map(|statement| {
+            let pos = statement.span().lo();
+            if comments.has_leading(pos) {
+                let pos_comments = comments.get_leading(pos).unwrap();
+                let comment_span = pos_comments
+                    .first()
+                    .unwrap()
+                    .span
+                    .between(pos_comments.last().unwrap().span);
+                let full_comment = pos_comments
+                    .iter()
+                    .map(|c| c.text.as_str())
+                    .collect::<Vec<&str>>()
+                    .join("\n");
+                if full_comment.contains("@RelayResolver") {
+                    let docblock = parse_docblock(&full_comment, self.current_location)?;
+                    let resolver_value = docblock.find_field(intern!("RelayResolver")).unwrap();
+
+                    let deprecated = get_deprecated(&docblock);
+                    let description = get_description(
+                        &docblock,
+                        SourceRange {
+                            start: comment_span.lo().to_u32(),
+                            end: comment_span.hi().to_u32(),
+                        },
+                    )?;
+                    self.extract_graphql_types(statement);
+                }
+            }
+            Ok(())
+        }));
 
         Ok(())
     }
