@@ -4,13 +4,27 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<1d5aa181ac5bc2a2c76a28a08c556b41>>
+ * @generated SignedSource<<4e3d61bbc0772bdc5606c006d7bf9234>>
  */
 
 mod ts_extract;
 
 use ts_extract::transform_fixture;
 use fixture_tests::test_fixture;
+
+#[tokio::test]
+async fn mising_return_type() {
+    let input = include_str!("ts_extract/fixtures/mising_return_type.ts");
+    let expected = include_str!("ts_extract/fixtures/mising_return_type.expected");
+    test_fixture(transform_fixture, file!(), "mising_return_type.ts", "ts_extract/fixtures/mising_return_type.expected", input, expected).await;
+}
+
+#[tokio::test]
+async fn mising_return_type_fine_for_non_resolver_functions() {
+    let input = include_str!("ts_extract/fixtures/mising_return_type_fine_for_non_resolver_functions.ts");
+    let expected = include_str!("ts_extract/fixtures/mising_return_type_fine_for_non_resolver_functions.expected");
+    test_fixture(transform_fixture, file!(), "mising_return_type_fine_for_non_resolver_functions.ts", "ts_extract/fixtures/mising_return_type_fine_for_non_resolver_functions.expected", input, expected).await;
+}
 
 #[tokio::test]
 async fn ts_arguments() {

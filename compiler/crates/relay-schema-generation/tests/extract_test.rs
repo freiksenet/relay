@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<caafbf6cc546eaff56e3bf378a475e26>>
+ * @generated SignedSource<<f13b1b4958b25ba25752a80dba13d230>>
  */
 
 mod extract;
@@ -31,6 +31,13 @@ async fn generics() {
     let input = include_str!("extract/fixtures/generics.js");
     let expected = include_str!("extract/fixtures/generics.expected");
     test_fixture(transform_fixture, file!(), "generics.js", "extract/fixtures/generics.expected", input, expected).await;
+}
+
+#[tokio::test]
+async fn mising_return_type() {
+    let input = include_str!("extract/fixtures/mising_return_type.js");
+    let expected = include_str!("extract/fixtures/mising_return_type.expected");
+    test_fixture(transform_fixture, file!(), "mising_return_type.js", "extract/fixtures/mising_return_type.expected", input, expected).await;
 }
 
 #[tokio::test]

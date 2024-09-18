@@ -1,0 +1,44 @@
+==================================== INPUT ====================================
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+//extract
+function id(user: User) {}
+
+//extract
+function number(user: User) {}
+
+//extract
+function string(user: User) {}
+==================================== OUTPUT ===================================
+✖︎ Expected the function return type to exist
+
+  <generated>:9:1
+    7 │ 
+    8 │ //extract
+    9 │ function id(user: User) {}
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   10 │ 
+
+
+✖︎ Expected the function return type to exist
+
+  <generated>:12:1
+   10 │ 
+   11 │ //extract
+   12 │ function number(user: User) {}
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   13 │ 
+
+
+✖︎ Expected the function return type to exist
+
+  <generated>:15:1
+   13 │ 
+   14 │ //extract
+   15 │ function string(user: User) {}
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
