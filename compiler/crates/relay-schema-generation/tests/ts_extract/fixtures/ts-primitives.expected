@@ -18,54 +18,44 @@ function string(user: User): string {}
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:211:213,
+            location: <generated>:203:233,
             item: "id",
         },
-        return_type: GenericTypeAnnotation(
-            GenericTypeAnnotation {
-                id: Identifier(
-                    Identifier {
-                        name: "ID",
-                        binding: None,
-                        type_annotation: None,
-                        loc: None,
-                        range: SourceRange {
-                            start: 227,
-                            end: 229,
+        return_type: TsTypeAnn {
+            span: 226..230,
+            type_ann: TsTypeRef(
+                TsTypeRef {
+                    span: 228..230,
+                    type_name: Ident(
+                        Ident {
+                            span: 228..230,
+                            ctxt: #0,
+                            sym: "ID",
+                            optional: false,
                         },
+                    ),
+                    type_params: None,
+                },
+            ),
+        },
+        entity_type: Some(
+            TsTypeAnn {
+                span: 219..225,
+                type_ann: TsTypeRef(
+                    TsTypeRef {
+                        span: 221..225,
+                        type_name: Ident(
+                            Ident {
+                                span: 221..225,
+                                ctxt: #0,
+                                sym: "User",
+                                optional: false,
+                            },
+                        ),
+                        type_params: None,
                     },
                 ),
-                type_parameters: None,
-                loc: None,
-                range: SourceRange {
-                    start: 227,
-                    end: 229,
-                },
             },
-        ),
-        entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 220,
-                                end: 224,
-                            },
-                        },
-                    ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 220,
-                        end: 224,
-                    },
-                },
-            ),
         ),
         arguments: None,
         is_live: None,
@@ -75,41 +65,36 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:253:259,
+            location: <generated>:245:283,
             item: "number",
         },
-        return_type: NumberTypeAnnotation(
-            NumberTypeAnnotation {
-                loc: None,
-                range: SourceRange {
-                    start: 273,
-                    end: 279,
-                },
-            },
-        ),
-        entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 266,
-                                end: 270,
-                            },
-                        },
-                    ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 266,
-                        end: 270,
-                    },
+        return_type: TsTypeAnn {
+            span: 272..280,
+            type_ann: TsKeywordType(
+                TsKeywordType {
+                    span: 274..280,
+                    kind: TsNumberKeyword,
                 },
             ),
+        },
+        entity_type: Some(
+            TsTypeAnn {
+                span: 265..271,
+                type_ann: TsTypeRef(
+                    TsTypeRef {
+                        span: 267..271,
+                        type_name: Ident(
+                            Ident {
+                                span: 267..271,
+                                ctxt: #0,
+                                sym: "User",
+                                optional: false,
+                            },
+                        ),
+                        type_params: None,
+                    },
+                ),
+            },
         ),
         arguments: None,
         is_live: None,
@@ -119,41 +104,36 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:303:309,
+            location: <generated>:295:333,
             item: "string",
         },
-        return_type: StringTypeAnnotation(
-            StringTypeAnnotation {
-                loc: None,
-                range: SourceRange {
-                    start: 323,
-                    end: 329,
-                },
-            },
-        ),
-        entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 316,
-                                end: 320,
-                            },
-                        },
-                    ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 316,
-                        end: 320,
-                    },
+        return_type: TsTypeAnn {
+            span: 322..330,
+            type_ann: TsKeywordType(
+                TsKeywordType {
+                    span: 324..330,
+                    kind: TsStringKeyword,
                 },
             ),
+        },
+        entity_type: Some(
+            TsTypeAnn {
+                span: 315..321,
+                type_ann: TsTypeRef(
+                    TsTypeRef {
+                        span: 317..321,
+                        type_name: Ident(
+                            Ident {
+                                span: 317..321,
+                                ctxt: #0,
+                                sym: "User",
+                                optional: false,
+                            },
+                        ),
+                        type_params: None,
+                    },
+                ),
+            },
         ),
         arguments: None,
         is_live: None,

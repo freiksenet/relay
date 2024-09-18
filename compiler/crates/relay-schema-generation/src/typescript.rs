@@ -8,6 +8,7 @@
 #![allow(dead_code, unused)]
 
 use std::fs::read_to_string;
+use std::primitive;
 
 use ::intern::intern;
 use ::intern::string_key::Intern;
@@ -45,6 +46,7 @@ use graphql_syntax::TokenKind;
 use graphql_syntax::TypeAnnotation;
 use hermes_estree::SourceRange;
 use indexmap::IndexMap;
+use intern::Lookup;
 use lazy_static::lazy_static;
 use relay_config::CustomType;
 use relay_config::CustomTypeImport;
@@ -64,6 +66,9 @@ use swc_common::source_map::SmallPos;
 use swc_common::sync::Lrc;
 use swc_common::BytePos;
 use swc_common::Spanned;
+use swc_ecma_ast::ModuleItem;
+use swc_ecma_ast::TsType;
+use swc_ecma_ast::TsTypeAnn;
 
 use crate::errors::SchemaGenerationError;
 use crate::find_resolver_imports::ImportExportVisitor;
@@ -75,7 +80,30 @@ use crate::get_description;
 use crate::invert_custom_scalar_map;
 use crate::FnvIndexMap;
 use crate::RelayResolverExtractor;
-use crate::ResolverFlowData;
+
+/**
+ * Reprensents a subset of supported Flow type definitions
+ */
+#[derive(Debug)]
+pub enum ResolverTypescriptData {
+    Strong(FieldData), // strong object or field on an object
+    Weak(WeakObjectData),
+}
+
+#[derive(Debug)]
+pub struct FieldData {
+    pub field_name: WithLocation<StringKey>,
+    pub return_type: TsTypeAnn,
+    pub entity_type: Option<TsTypeAnn>,
+    pub arguments: Option<TsTypeAnn>,
+    pub is_live: Option<Location>,
+}
+
+#[derive(Debug)]
+pub struct WeakObjectData {
+    pub field_name: WithLocation<StringKey>,
+    pub type_alias: TsTypeAnn,
+}
 
 pub struct TSRelayResolverExtractor {
     /// Cross module states
@@ -127,7 +155,7 @@ impl TSRelayResolverExtractor {
     pub fn extract_function(
         &self,
         node: &swc_ecma_ast::FnDecl,
-    ) -> DiagnosticsResult<ResolverFlowData> {
+    ) -> DiagnosticsResult<ResolverTypescriptData> {
         let ident = node.ident.sym.as_str();
 
         let field_name = WithLocation {
@@ -142,6 +170,58 @@ impl TSRelayResolverExtractor {
             )
         })?;
 
+        let (return_type_with_live, is_optional) = unwrap_nullable_type(return_type_annotation);
+
+        let current_location =
+            Location::new(self.current_location.clone(), to_relay_span(node.span()));
+
+        let return_type = get_return_type(*return_type_with_live, current_location)?;
+
+        let entity_type = {
+            if node.function.params.is_empty() {
+                None
+            } else {
+                let param = &node.function.params[0].pat;
+
+                if let swc_ecma_ast::Pat::Ident(ident) = param {
+                    let type_annotation = ident
+                        .type_ann
+                        .as_ref()
+                        .ok_or_else(|| {
+                            Diagnostic::error(
+                                SchemaGenerationError::MissingParamType,
+                                Location::new(
+                                    self.current_location.clone(),
+                                    to_relay_span(ident.span()),
+                                ),
+                            )
+                        })?
+                        .clone();
+
+                    Some(*type_annotation)
+                } else {
+                    let printed_param = swc_ecma_codegen::to_code(param);
+
+                    return Err(vec![Diagnostic::error(
+                        SchemaGenerationError::UnsupportedType {
+                            name: &printed_param.intern().lookup(),
+                        },
+                        Location::new(self.current_location.clone(), to_relay_span(node.span())),
+                    )]);
+                }
+            }
+        };
+
+        Ok(ResolverTypescriptData::Strong(FieldData {
+            field_name,
+            return_type,
+            entity_type,
+            arguments: None,
+            is_live: None,
+        }))
+    }
+
+    fn extract_graphql_types(&self, statement: &ModuleItem) {
         todo!()
     }
 }
@@ -234,6 +314,47 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
     }
 }
 
+fn unsupported(name: &str, current_location: Location) -> DiagnosticsResult<TsTypeAnn> {
+    let name = name.to_string().intern();
+    Err(vec![Diagnostic::error(
+        SchemaGenerationError::UnsupportedType {
+            name: name.lookup(),
+        },
+        current_location,
+    )])
+}
+
+fn get_return_type(
+    return_type_with_live: TsTypeAnn,
+    current_location: Location,
+) -> DiagnosticsResult<TsTypeAnn> {
+    let span = return_type_with_live.type_ann.span();
+    let type_ann = *return_type_with_live.clone().type_ann;
+
+    let primitive_type: DiagnosticsResult<TsTypeAnn> = match type_ann {
+        TsType::TsKeywordType(ts_keyword_type) => match ts_keyword_type.kind {
+            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => Ok(return_type_with_live),
+            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => Ok(return_type_with_live),
+            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => Ok(return_type_with_live),
+            _ => unsupported("Unsupported type", current_location),
+        },
+        TsType::TsTypeRef(ts_type_ref) => {
+            // We only support type references with one type parameter
+            if ts_type_ref
+                .type_params
+                .is_some_and(|params| params.params.len() > 1)
+            {
+                unsupported("Unsupported type", current_location)
+            } else {
+                Ok(return_type_with_live)
+            }
+        }
+        _ => unsupported("Unsupported type", current_location),
+    };
+
+    primitive_type
+}
+
 fn extract_module_resolution(
     module: &swc_ecma_ast::Module,
     source_location: &SourceLocationKey,
@@ -311,4 +432,52 @@ fn extract_module_resolution(
 
 fn to_relay_span(span: swc_common::Span) -> Span {
     Span::new(span.lo().to_u32(), span.hi().to_u32())
+}
+
+fn unwrap_nullable_type(
+    type_ann: &Box<swc_ecma_ast::TsTypeAnn>,
+) -> (Box<swc_ecma_ast::TsTypeAnn>, bool) {
+    let mut optional = false;
+    let return_type = &type_ann.type_ann;
+    let union_type = return_type.as_ts_union_or_intersection_type();
+
+    let union_type = match union_type {
+        Some(swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(ts_type)) => Some(ts_type),
+        Some(swc_ecma_ast::TsUnionOrIntersectionType::TsIntersectionType(ts_type)) => {
+            // TODO(mapol): Add some diagnostics here?
+            // Perhaps should check this before we reach here?
+            panic!("Intersection types are not supported in Relay Resolver")
+        }
+        None => None,
+    };
+
+    match union_type {
+        Some(ts_type) => {
+            // Check if this is a union with `null` and/or `undefined`
+            let is_required = ts_type
+                .types
+                .iter()
+                .filter_map(|type_ann| match type_ann.as_ts_keyword_type() {
+                    Some(ts_keyword_type) => match ts_keyword_type.kind {
+                        swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword => Some(ts_keyword_type),
+                        swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword => {
+                            Some(ts_keyword_type)
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .is_empty();
+
+            let non_optional_type = ts_type.types.iter();
+
+            return (type_ann.clone(), is_required);
+        }
+        None => {}
+    };
+
+    let v = type_ann.clone();
+
+    (v, optional)
 }
