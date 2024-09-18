@@ -82,6 +82,8 @@ use crate::invert_custom_scalar_map;
 use crate::FnvIndexMap;
 use crate::RelayResolverExtractor;
 
+pub static LIVE_STATE_TYPE_NAME: &str = "LiveState";
+
 /**
  * Reprensents a subset of supported Flow type definitions
  */
@@ -157,27 +159,105 @@ impl TSRelayResolverExtractor {
         &self,
         node: &swc_ecma_ast::FnDecl,
     ) -> DiagnosticsResult<ResolverTypescriptData> {
+        let current_location =
+            Location::new(self.current_location.clone(), to_relay_span(node.span()));
+
         let ident = node.ident.sym.as_str();
 
+        // Field name is the function name
         let field_name = WithLocation {
             item: ident.intern(),
             location: Location::new(self.current_location.clone(), to_relay_span(node.span())),
         };
 
-        let return_type_annotation = node.function.return_type.as_ref().ok_or_else(|| {
-            Diagnostic::error(
-                SchemaGenerationError::MissingReturnType,
-                Location::new(self.current_location.clone(), to_relay_span(node.span())),
-            )
-        })?;
+        // Return type is the return type annotation of the function
+        let return_type_annotation = node
+            .function
+            .return_type
+            .as_ref()
+            .ok_or_else(|| {
+                Diagnostic::error(
+                    SchemaGenerationError::MissingReturnType,
+                    Location::new(self.current_location.clone(), to_relay_span(node.span())),
+                )
+            })?
+            .type_ann
+            .as_ref()
+            .clone();
 
-        let (return_type_with_live, is_optional) = unwrap_nullable_type(return_type_annotation);
+        // If the return type is the LiveState<T> type we don't care about LiveState but just want to take T
+        let (return_type, is_live) = match &return_type_annotation {
+            TsType::TsTypeRef(ts_type_ref) => {
+                let is_live_state = ts_type_ref
+                    .type_name
+                    .as_ident()
+                    .map(|ident| ident.sym.as_str())
+                    .is_some_and(|ident| ident == LIVE_STATE_TYPE_NAME);
 
-        let current_location =
-            Location::new(self.current_location.clone(), to_relay_span(node.span()));
+                if ts_type_ref.type_name.is_ts_qualified_name() {
+                    return Err(vec![Diagnostic::error(
+                        SchemaGenerationError::UnsupportedType {
+                            name: "Qualified names",
+                        },
+                        Location::new(
+                            self.current_location.clone(),
+                            to_relay_span(ts_type_ref.span),
+                        ),
+                    )]);
+                }
 
-        let return_type = get_return_type(*return_type_with_live, current_location)?;
+                if ts_type_ref
+                    .type_params
+                    .as_ref()
+                    .is_some_and(|type_params| type_params.params.len() > 1)
+                {
+                    return Err(vec![Diagnostic::error(
+                        SchemaGenerationError::UnsupportedType {
+                            name: "Multiple type params",
+                        },
+                        Location::new(
+                            self.current_location.clone(),
+                            to_relay_span(ts_type_ref.span),
+                        ),
+                    )]);
+                }
 
+                if is_live_state {
+                    let type_params = ts_type_ref.type_params.as_ref().ok_or_else(|| {
+                        Diagnostic::error(
+                            SchemaGenerationError::LiveStateExpectedSingleGeneric,
+                            Location::new(
+                                self.current_location.clone(),
+                                to_relay_span(ts_type_ref.span),
+                            ),
+                        )
+                    })?;
+
+                    let type_param: &Box<TsType> = type_params.params.first().ok_or_else(|| {
+                        Diagnostic::error(
+                            SchemaGenerationError::LiveStateExpectedSingleGeneric,
+                            Location::new(
+                                self.current_location.clone(),
+                                to_relay_span(type_params.span),
+                            ),
+                        )
+                    })?;
+
+                    (
+                        type_param.as_ref().clone(),
+                        Some(Location::new(
+                            self.current_location.clone(),
+                            to_relay_span(node.span()),
+                        )),
+                    )
+                } else {
+                    (return_type_annotation, None)
+                }
+            }
+            _ => (return_type_annotation, None),
+        };
+
+        // Entity type is the type of the first argument to the function
         let entity_type = {
             if node.function.params.is_empty() {
                 None
@@ -218,7 +298,7 @@ impl TSRelayResolverExtractor {
             return_type,
             entity_type,
             arguments: None,
-            is_live: None,
+            is_live,
         }))
     }
 
@@ -479,23 +559,16 @@ fn unsupported(name: &str, current_location: Location) -> DiagnosticsResult<TsTy
 }
 
 fn get_return_type(
-    return_type_with_live: TsTypeAnn,
+    return_type_with_live: TsType,
     current_location: Location,
 ) -> DiagnosticsResult<TsType> {
-    let span = return_type_with_live.type_ann.span();
-    let type_ann = *return_type_with_live.clone().type_ann;
+    let span = return_type_with_live.span();
 
-    let primitive_type: DiagnosticsResult<TsType> = match type_ann {
+    let primitive_type: DiagnosticsResult<TsType> = match return_type_with_live.clone() {
         TsType::TsKeywordType(ts_keyword_type) => match ts_keyword_type.kind {
-            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => {
-                Ok(return_type_with_live.type_ann.as_ref().clone())
-            }
-            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => {
-                Ok(return_type_with_live.type_ann.as_ref().clone())
-            }
-            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => {
-                Ok(return_type_with_live.type_ann.as_ref().clone())
-            }
+            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => Ok(return_type_with_live),
+            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => Ok(return_type_with_live),
+            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => Ok(return_type_with_live),
             _ => unsupported("Unsupported type", current_location),
         },
         TsType::TsTypeRef(ts_type_ref) => {
@@ -506,7 +579,7 @@ fn get_return_type(
             {
                 unsupported("Unsupported type", current_location)
             } else {
-                Ok(return_type_with_live.type_ann.as_ref().clone())
+                Ok(return_type_with_live)
             }
         }
         _ => unsupported("Unsupported type", current_location),
@@ -594,50 +667,53 @@ fn to_relay_span(span: swc_common::Span) -> Span {
     Span::new(span.lo().to_u32(), span.hi().to_u32())
 }
 
-fn unwrap_nullable_type(
-    type_ann: &Box<swc_ecma_ast::TsTypeAnn>,
-) -> (Box<swc_ecma_ast::TsTypeAnn>, bool) {
-    let mut optional = false;
-    let return_type = &type_ann.type_ann;
-    let union_type = return_type.as_ts_union_or_intersection_type();
+// fn unwrap_nullable_type(
+//     type_ann: &Box<swc_ecma_ast::TsTypeAnn>,
+//     current_location: Location,
+// ) -> (Box<swc_ecma_ast::TsTypeAnn>, bool) {
+//     let mut optional = false;
+//     let return_type = &type_ann.type_ann;
+//     let union_type = return_type.as_ts_union_or_intersection_type();
 
-    let union_type = match union_type {
-        Some(swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(ts_type)) => Some(ts_type),
-        Some(swc_ecma_ast::TsUnionOrIntersectionType::TsIntersectionType(ts_type)) => {
-            // TODO(mapol): Add some diagnostics here?
-            // Perhaps should check this before we reach here?
-            panic!("Intersection types are not supported in Relay Resolver")
-        }
-        None => None,
-    };
+//     let union_type = match union_type {
+//         Some(swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(ts_type)) => Some(ts_type),
+//         Some(swc_ecma_ast::TsUnionOrIntersectionType::TsIntersectionType(ts_type)) => {
+//             // TODO(mapol): Add some diagnostics here?
+//             // Perhaps should check this before we reach here?
+//             panic!("Intersection types are not supported in Relay Resolver")
+//         }
+//         None => None,
+//     };
 
-    match union_type {
-        Some(ts_type) => {
-            // Check if this is a union with `null` and/or `undefined`
-            let is_required = ts_type
-                .types
-                .iter()
-                .filter_map(|type_ann| match type_ann.as_ts_keyword_type() {
-                    Some(ts_keyword_type) => match ts_keyword_type.kind {
-                        swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword => Some(ts_keyword_type),
-                        swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword => {
-                            Some(ts_keyword_type)
-                        }
-                        _ => None,
-                    },
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-                .is_empty();
+//     match union_type {
+//         Some(ts_type) => {
+//             // Check if this is a union with `null` and/or `undefined`
+//             let is_required = ts_type
+//                 .types
+//                 .iter()
+//                 .filter_map(|type_ann| match type_ann.as_ts_keyword_type() {
+//                     Some(ts_keyword_type) => match ts_keyword_type.kind {
+//                         swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword => Some(ts_keyword_type),
+//                         swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword => {
+//                             Some(ts_keyword_type)
+//                         }
+//                         _ => None,
+//                     },
+//                     _ => None,
+//                 })
+//                 .collect::<Vec<_>>()
+//                 .is_empty();
 
-            let non_optional_type = ts_type.types.iter();
+//             let non_optional_type = ts_type.types.first().expect("Expected union to have types");
 
-            return (type_ann.clone(), is_required);
-        }
-        None => {}
-    };
+//             let return_type = get_return_type(non_optional_type.as_ref().clone(), current_location);
 
-    let v = type_ann.clone();
+//             return (return_type.clone(), is_required);
+//         }
+//         None => {}
+//     };
 
-    (v, optional)
-}
+//     let v = type_ann.clone();
+
+//     (v, optional)
+// }

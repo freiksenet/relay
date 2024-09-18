@@ -21,41 +21,35 @@ Strong(
             location: <generated>:203:233,
             item: "id",
         },
-        return_type: TsTypeAnn {
-            span: 226..230,
-            type_ann: TsTypeRef(
+        return_type: TsTypeRef(
+            TsTypeRef {
+                span: 228..230,
+                type_name: Ident(
+                    Ident {
+                        span: 228..230,
+                        ctxt: #0,
+                        sym: "ID",
+                        optional: false,
+                    },
+                ),
+                type_params: None,
+            },
+        ),
+        entity_type: Some(
+            TsTypeRef(
                 TsTypeRef {
-                    span: 228..230,
+                    span: 221..225,
                     type_name: Ident(
                         Ident {
-                            span: 228..230,
+                            span: 221..225,
                             ctxt: #0,
-                            sym: "ID",
+                            sym: "User",
                             optional: false,
                         },
                     ),
                     type_params: None,
                 },
             ),
-        },
-        entity_type: Some(
-            TsTypeAnn {
-                span: 219..225,
-                type_ann: TsTypeRef(
-                    TsTypeRef {
-                        span: 221..225,
-                        type_name: Ident(
-                            Ident {
-                                span: 221..225,
-                                ctxt: #0,
-                                sym: "User",
-                                optional: false,
-                            },
-                        ),
-                        type_params: None,
-                    },
-                ),
-            },
         ),
         arguments: None,
         is_live: None,
@@ -68,33 +62,27 @@ Strong(
             location: <generated>:245:283,
             item: "number",
         },
-        return_type: TsTypeAnn {
-            span: 272..280,
-            type_ann: TsKeywordType(
-                TsKeywordType {
-                    span: 274..280,
-                    kind: TsNumberKeyword,
+        return_type: TsKeywordType(
+            TsKeywordType {
+                span: 274..280,
+                kind: TsNumberKeyword,
+            },
+        ),
+        entity_type: Some(
+            TsTypeRef(
+                TsTypeRef {
+                    span: 267..271,
+                    type_name: Ident(
+                        Ident {
+                            span: 267..271,
+                            ctxt: #0,
+                            sym: "User",
+                            optional: false,
+                        },
+                    ),
+                    type_params: None,
                 },
             ),
-        },
-        entity_type: Some(
-            TsTypeAnn {
-                span: 265..271,
-                type_ann: TsTypeRef(
-                    TsTypeRef {
-                        span: 267..271,
-                        type_name: Ident(
-                            Ident {
-                                span: 267..271,
-                                ctxt: #0,
-                                sym: "User",
-                                optional: false,
-                            },
-                        ),
-                        type_params: None,
-                    },
-                ),
-            },
         ),
         arguments: None,
         is_live: None,
@@ -107,33 +95,27 @@ Strong(
             location: <generated>:295:333,
             item: "string",
         },
-        return_type: TsTypeAnn {
-            span: 322..330,
-            type_ann: TsKeywordType(
-                TsKeywordType {
-                    span: 324..330,
-                    kind: TsStringKeyword,
+        return_type: TsKeywordType(
+            TsKeywordType {
+                span: 324..330,
+                kind: TsStringKeyword,
+            },
+        ),
+        entity_type: Some(
+            TsTypeRef(
+                TsTypeRef {
+                    span: 317..321,
+                    type_name: Ident(
+                        Ident {
+                            span: 317..321,
+                            ctxt: #0,
+                            sym: "User",
+                            optional: false,
+                        },
+                    ),
+                    type_params: None,
                 },
             ),
-        },
-        entity_type: Some(
-            TsTypeAnn {
-                span: 315..321,
-                type_ann: TsTypeRef(
-                    TsTypeRef {
-                        span: 317..321,
-                        type_name: Ident(
-                            Ident {
-                                span: 317..321,
-                                ctxt: #0,
-                                sym: "User",
-                                optional: false,
-                            },
-                        ),
-                        type_params: None,
-                    },
-                ),
-            },
         ),
         arguments: None,
         is_live: None,
