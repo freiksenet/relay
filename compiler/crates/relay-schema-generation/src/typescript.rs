@@ -94,16 +94,16 @@ pub enum ResolverTypescriptData {
 #[derive(Debug)]
 pub struct FieldData {
     pub field_name: WithLocation<StringKey>,
-    pub return_type: TsTypeAnn,
-    pub entity_type: Option<TsTypeAnn>,
-    pub arguments: Option<TsTypeAnn>,
+    pub return_type: TsType,
+    pub entity_type: Option<TsType>,
+    pub arguments: Option<TsType>,
     pub is_live: Option<Location>,
 }
 
 #[derive(Debug)]
 pub struct WeakObjectData {
     pub field_name: WithLocation<StringKey>,
-    pub type_alias: TsTypeAnn,
+    pub type_alias: TsType,
 }
 
 pub struct TSRelayResolverExtractor {
@@ -126,7 +126,7 @@ struct UnresolvedTSFieldDefinition {
     entity_name: Option<WithLocation<StringKey>>,
     field_name: WithLocation<StringKey>,
     return_type: swc_ecma_ast::TsType,
-    arguments: Option<Vec<swc_ecma_ast::Param>>,
+    arguments: Option<TsType>,
     source_hash: ResolverSourceHash,
     is_live: Option<Location>,
     description: Option<WithLocation<StringKey>>,
@@ -199,7 +199,7 @@ impl TSRelayResolverExtractor {
                         })?
                         .clone();
 
-                    Some(*type_annotation)
+                    Some(*type_annotation.type_ann)
                 } else {
                     let printed_param = swc_ecma_codegen::to_code(param);
 
@@ -238,41 +238,9 @@ impl TSRelayResolverExtractor {
 
     fn extract_entity_name(
         &self,
-        entity_type: swc_ecma_ast::TsType,
+        entity_type: &swc_ecma_ast::TsType,
     ) -> DiagnosticsResult<WithLocation<StringKey>> {
-        match entity_type {
-            TsType::TsKeywordType(TsKeywordTypeKind::TsNumberKeyword) => Ok(WithLocation {
-                item: intern!("Float"),
-                location: self.to_location(annot.as_ref()),
-            }),
-            TsType::StringTypeAnnotation(annot) => Ok(WithLocation {
-                item: intern!("String"),
-                location: self.to_location(annot.as_ref()),
-            }),
-            TsType::GenericTypeAnnotation(annot) => {
-                let id = schema_extractor::get_identifier_for_flow_generic(WithLocation {
-                    item: &annot,
-                    location: self.to_location(annot.as_ref()),
-                })?;
-                if annot.type_parameters.is_some() {
-                    return Err(vec![Diagnostic::error(
-                        SchemaGenerationError::GenericNotSupported,
-                        self.to_location(annot.as_ref()),
-                    )]);
-                }
-                Ok(id)
-            }
-            TsType::NullableTypeAnnotation(annot) => Err(vec![Diagnostic::error(
-                SchemaGenerationError::UnexpectedNullableStrongType,
-                self.to_location(annot.as_ref()),
-            )]),
-            _ => Err(vec![Diagnostic::error(
-                SchemaGenerationError::UnsupportedType {
-                    name: entity_type.name(),
-                },
-                self.to_location(&entity_type),
-            )]),
-        }
+        todo!()
     }
 
     fn extract_graphql_types(
@@ -301,6 +269,40 @@ impl TSRelayResolverExtractor {
                 Location::new(self.current_location, Span::new(range.start, range.end)),
             )])
         }
+    }
+
+    fn add_field_definition(
+        &mut self,
+        module_resolution: &ModuleResolution,
+        fragment_definitions: Option<&Vec<ExecutableDefinition>>,
+        mut field_definition: UnresolvedTSFieldDefinition,
+    ) -> DiagnosticsResult<()> {
+        todo!()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_type_definition(
+        &mut self,
+        module_resolution: &ModuleResolution,
+        name: WithLocation<StringKey>,
+        mut return_type: TsType,
+        source_hash: ResolverSourceHash,
+        is_live: Option<Location>,
+        description: Option<WithLocation<StringKey>>,
+    ) -> DiagnosticsResult<()> {
+        todo!()
+    }
+
+    fn add_weak_type_definition(
+        &mut self,
+        name: WithLocation<StringKey>,
+        type_alias: TsType,
+        source_hash: ResolverSourceHash,
+        source_module_path: &str,
+        description: Option<WithLocation<StringKey>>,
+        should_generate_fields: bool,
+    ) -> DiagnosticsResult<()> {
+        todo!()
     }
 }
 
@@ -406,7 +408,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                             if is_field_definition {
                                 let entity_name = match entity_type {
                                     Some(entity_type) => {
-                                        Some(self.extract_entity_name(entity_type)?)
+                                        Some(self.extract_entity_name(&entity_type)?)
                                     }
                                     None => None,
                                 };
@@ -414,7 +416,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                                 self.add_field_definition(
                                     &module_resolution,
                                     fragment_definitions,
-                                    UnresolvedFieldDefinition {
+                                    UnresolvedTSFieldDefinition {
                                         entity_name,
                                         field_name: name,
                                         return_type,
@@ -466,7 +468,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
     }
 }
 
-fn unsupported(name: &str, current_location: Location) -> DiagnosticsResult<TsTypeAnn> {
+fn unsupported(name: &str, current_location: Location) -> DiagnosticsResult<TsType> {
     let name = name.to_string().intern();
     Err(vec![Diagnostic::error(
         SchemaGenerationError::UnsupportedType {
@@ -479,15 +481,21 @@ fn unsupported(name: &str, current_location: Location) -> DiagnosticsResult<TsTy
 fn get_return_type(
     return_type_with_live: TsTypeAnn,
     current_location: Location,
-) -> DiagnosticsResult<TsTypeAnn> {
+) -> DiagnosticsResult<TsType> {
     let span = return_type_with_live.type_ann.span();
     let type_ann = *return_type_with_live.clone().type_ann;
 
-    let primitive_type: DiagnosticsResult<TsTypeAnn> = match type_ann {
+    let primitive_type: DiagnosticsResult<TsType> = match type_ann {
         TsType::TsKeywordType(ts_keyword_type) => match ts_keyword_type.kind {
-            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => Ok(return_type_with_live),
-            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => Ok(return_type_with_live),
-            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => Ok(return_type_with_live),
+            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => {
+                Ok(return_type_with_live.type_ann.as_ref().clone())
+            }
+            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => {
+                Ok(return_type_with_live.type_ann.as_ref().clone())
+            }
+            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => {
+                Ok(return_type_with_live.type_ann.as_ref().clone())
+            }
             _ => unsupported("Unsupported type", current_location),
         },
         TsType::TsTypeRef(ts_type_ref) => {
@@ -498,7 +506,7 @@ fn get_return_type(
             {
                 unsupported("Unsupported type", current_location)
             } else {
-                Ok(return_type_with_live)
+                Ok(return_type_with_live.type_ann.as_ref().clone())
             }
         }
         _ => unsupported("Unsupported type", current_location),
