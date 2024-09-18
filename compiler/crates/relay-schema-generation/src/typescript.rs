@@ -222,10 +222,6 @@ impl TSRelayResolverExtractor {
         }))
     }
 
-    fn extract_graphql_types(&self, statement: &ModuleItem) {
-        todo!()
-    }
-
     fn extract_type_alias(
         &self,
         node: &swc_ecma_ast::TsTypeAliasDecl,
@@ -283,7 +279,7 @@ impl TSRelayResolverExtractor {
         &self,
         node: &swc_ecma_ast::ModuleItem,
         range: SourceRange,
-    ) -> DiagnosticsResult<ResolverTSData> {
+    ) -> DiagnosticsResult<ResolverTypescriptData> {
         if let swc_ecma_ast::ModuleItem::ModuleDecl(swc_ecma_ast::ModuleDecl::ExportDecl(
             ref node,
         )) = node
@@ -292,7 +288,7 @@ impl TSRelayResolverExtractor {
                 swc_ecma_ast::Decl::Fn(fn_node) => self.extract_function(fn_node),
                 swc_ecma_ast::Decl::TsTypeAlias(alias_node) => {
                     let data = self.extract_type_alias(alias_node)?;
-                    Ok(ResolverTSData::Weak(data))
+                    Ok(ResolverTypescriptData::Weak(data))
                 }
                 _ => Err(vec![Diagnostic::error(
                     SchemaGenerationError::ExpectedFunctionOrTypeAlias,
