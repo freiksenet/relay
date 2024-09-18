@@ -13,6 +13,7 @@ use std::primitive;
 use ::intern::intern;
 use ::intern::string_key::Intern;
 use ::intern::string_key::StringKey;
+use ::intern::Lookup;
 use common::Diagnostic;
 use common::DiagnosticsResult;
 use common::Location;
@@ -46,7 +47,6 @@ use graphql_syntax::TokenKind;
 use graphql_syntax::TypeAnnotation;
 use hermes_estree::SourceRange;
 use indexmap::IndexMap;
-use intern::Lookup;
 use lazy_static::lazy_static;
 use relay_config::CustomType;
 use relay_config::CustomTypeImport;
@@ -67,6 +67,7 @@ use swc_common::sync::Lrc;
 use swc_common::BytePos;
 use swc_common::Spanned;
 use swc_ecma_ast::ModuleItem;
+use swc_ecma_ast::TsKeywordTypeKind;
 use swc_ecma_ast::TsType;
 use swc_ecma_ast::TsTypeAnn;
 
@@ -224,6 +225,87 @@ impl TSRelayResolverExtractor {
     fn extract_graphql_types(&self, statement: &ModuleItem) {
         todo!()
     }
+
+    fn extract_type_alias(
+        &self,
+        node: &swc_ecma_ast::TsTypeAliasDecl,
+    ) -> DiagnosticsResult<WeakObjectData> {
+        let field_name = WithLocation {
+            item: (&node.id.sym.as_str()).intern(),
+            location: Location::new(self.current_location, to_relay_span(node.span())),
+        };
+        Ok(WeakObjectData {
+            field_name,
+            type_alias: node.type_ann.as_ref().clone(),
+        })
+    }
+
+    fn extract_entity_name(
+        &self,
+        entity_type: swc_ecma_ast::TsType,
+    ) -> DiagnosticsResult<WithLocation<StringKey>> {
+        match entity_type {
+            TsType::TsKeywordType(TsKeywordTypeKind::TsNumberKeyword) => Ok(WithLocation {
+                item: intern!("Float"),
+                location: self.to_location(annot.as_ref()),
+            }),
+            TsType::StringTypeAnnotation(annot) => Ok(WithLocation {
+                item: intern!("String"),
+                location: self.to_location(annot.as_ref()),
+            }),
+            TsType::GenericTypeAnnotation(annot) => {
+                let id = schema_extractor::get_identifier_for_flow_generic(WithLocation {
+                    item: &annot,
+                    location: self.to_location(annot.as_ref()),
+                })?;
+                if annot.type_parameters.is_some() {
+                    return Err(vec![Diagnostic::error(
+                        SchemaGenerationError::GenericNotSupported,
+                        self.to_location(annot.as_ref()),
+                    )]);
+                }
+                Ok(id)
+            }
+            TsType::NullableTypeAnnotation(annot) => Err(vec![Diagnostic::error(
+                SchemaGenerationError::UnexpectedNullableStrongType,
+                self.to_location(annot.as_ref()),
+            )]),
+            _ => Err(vec![Diagnostic::error(
+                SchemaGenerationError::UnsupportedType {
+                    name: entity_type.name(),
+                },
+                self.to_location(&entity_type),
+            )]),
+        }
+    }
+
+    fn extract_graphql_types(
+        &self,
+        node: &swc_ecma_ast::ModuleItem,
+        range: SourceRange,
+    ) -> DiagnosticsResult<ResolverTSData> {
+        if let swc_ecma_ast::ModuleItem::ModuleDecl(swc_ecma_ast::ModuleDecl::ExportDecl(
+            ref node,
+        )) = node
+        {
+            match &node.decl {
+                swc_ecma_ast::Decl::Fn(fn_node) => self.extract_function(fn_node),
+                swc_ecma_ast::Decl::TsTypeAlias(alias_node) => {
+                    let data = self.extract_type_alias(alias_node)?;
+                    Ok(ResolverTSData::Weak(data))
+                }
+                _ => Err(vec![Diagnostic::error(
+                    SchemaGenerationError::ExpectedFunctionOrTypeAlias,
+                    Location::new(self.current_location, Span::new(range.start, range.end)),
+                )]),
+            }
+        } else {
+            Err(vec![Diagnostic::error(
+                SchemaGenerationError::ExpectedNamedExport,
+                Location::new(self.current_location, Span::new(range.start, range.end)),
+            )])
+        }
+    }
 }
 
 impl RelayResolverExtractor for TSRelayResolverExtractor {
@@ -300,7 +382,81 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                             end: comment_span.hi().to_u32(),
                         },
                     )?;
-                    self.extract_graphql_types(statement);
+                    match self.extract_graphql_types(
+                        statement,
+                        SourceRange {
+                            start: comment_span.lo().to_u32(),
+                            end: statement.span().hi().to_u32(),
+                        },
+                    )? {
+                        ResolverTypescriptData::Strong(FieldData {
+                            field_name,
+                            return_type,
+                            entity_type,
+                            arguments,
+                            is_live,
+                        }) => {
+                            let name = resolver_value.field_value.unwrap_or(field_name);
+
+                            // Heuristic to treat lowercase name as field definition, otherwise object definition
+                            // if there is a `.` in the name, it is the old resolver synatx, e.g. @RelayResolver Client.field,
+                            // we should treat it as a field definition
+                            let is_field_definition = {
+                                let name_str = name.item.lookup();
+                                let is_lowercase_initial =
+                                    name_str.chars().next().unwrap().is_lowercase();
+                                is_lowercase_initial || name_str.contains('.')
+                            };
+                            if is_field_definition {
+                                let entity_name = match entity_type {
+                                    Some(entity_type) => {
+                                        Some(self.extract_entity_name(entity_type)?)
+                                    }
+                                    None => None,
+                                };
+
+                                self.add_field_definition(
+                                    &module_resolution,
+                                    fragment_definitions,
+                                    UnresolvedFieldDefinition {
+                                        entity_name,
+                                        field_name: name,
+                                        return_type,
+                                        arguments,
+                                        source_hash,
+                                        is_live,
+                                        description,
+                                        deprecated,
+                                        root_fragment: None,
+                                        entity_type: None,
+                                    },
+                                )?
+                            } else {
+                                self.add_type_definition(
+                                    &module_resolution,
+                                    name,
+                                    return_type,
+                                    source_hash,
+                                    is_live,
+                                    description,
+                                )?
+                            }
+                        }
+                        ResolverTypescriptData::Weak(WeakObjectData {
+                            field_name,
+                            type_alias,
+                        }) => {
+                            let name = resolver_value.field_value.unwrap_or(field_name);
+                            self.add_weak_type_definition(
+                                name,
+                                type_alias,
+                                source_hash,
+                                source_module_path,
+                                description,
+                                false,
+                            )?
+                        }
+                    }
                 }
             }
             Ok(())
