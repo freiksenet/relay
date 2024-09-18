@@ -8,6 +8,7 @@
 #![allow(dead_code, unused)]
 
 use std::fs::read_to_string;
+use std::ops::Deref;
 use std::primitive;
 
 use ::intern::intern;
@@ -293,11 +294,31 @@ impl TSRelayResolverExtractor {
             }
         };
 
+        let params = &node.function.params;
+        let arguments = if params.len() > 1 {
+            let parent_param = &params[0];
+            let arg_param = &params[1];
+            if let swc_ecma_ast::Pat::Ident(ident) = &arg_param.pat {
+                let type_annotation = ident.type_ann.as_ref().ok_or_else(|| {
+                    Diagnostic::error(
+                        SchemaGenerationError::MissingParamType,
+                        Location::new(self.current_location.clone(), to_relay_span(ident.span())),
+                    )
+                })?;
+
+                Some(type_annotation.type_ann.as_ref().clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         Ok(ResolverTypescriptData::Strong(FieldData {
             field_name,
             return_type,
             entity_type,
-            arguments: None,
+            arguments,
             is_live,
         }))
     }
@@ -666,54 +687,3 @@ fn extract_module_resolution(
 fn to_relay_span(span: swc_common::Span) -> Span {
     Span::new(span.lo().to_u32(), span.hi().to_u32())
 }
-
-// fn unwrap_nullable_type(
-//     type_ann: &Box<swc_ecma_ast::TsTypeAnn>,
-//     current_location: Location,
-// ) -> (Box<swc_ecma_ast::TsTypeAnn>, bool) {
-//     let mut optional = false;
-//     let return_type = &type_ann.type_ann;
-//     let union_type = return_type.as_ts_union_or_intersection_type();
-
-//     let union_type = match union_type {
-//         Some(swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(ts_type)) => Some(ts_type),
-//         Some(swc_ecma_ast::TsUnionOrIntersectionType::TsIntersectionType(ts_type)) => {
-//             // TODO(mapol): Add some diagnostics here?
-//             // Perhaps should check this before we reach here?
-//             panic!("Intersection types are not supported in Relay Resolver")
-//         }
-//         None => None,
-//     };
-
-//     match union_type {
-//         Some(ts_type) => {
-//             // Check if this is a union with `null` and/or `undefined`
-//             let is_required = ts_type
-//                 .types
-//                 .iter()
-//                 .filter_map(|type_ann| match type_ann.as_ts_keyword_type() {
-//                     Some(ts_keyword_type) => match ts_keyword_type.kind {
-//                         swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword => Some(ts_keyword_type),
-//                         swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword => {
-//                             Some(ts_keyword_type)
-//                         }
-//                         _ => None,
-//                     },
-//                     _ => None,
-//                 })
-//                 .collect::<Vec<_>>()
-//                 .is_empty();
-
-//             let non_optional_type = ts_type.types.first().expect("Expected union to have types");
-
-//             let return_type = get_return_type(non_optional_type.as_ref().clone(), current_location);
-
-//             return (return_type.clone(), is_required);
-//         }
-//         None => {}
-//     };
-
-//     let v = type_ann.clone();
-
-//     (v, optional)
-// }
