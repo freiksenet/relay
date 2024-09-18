@@ -12,6 +12,7 @@
 mod errors;
 mod find_resolver_imports;
 mod typescript;
+mod typescript_extract;
 
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
