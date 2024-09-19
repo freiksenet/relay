@@ -15,6 +15,7 @@ pub mod build_project;
 pub mod compiler;
 pub mod compiler_state;
 pub mod config;
+mod custom_resolver_extract;
 mod docblocks;
 pub mod errors;
 pub mod file_source;

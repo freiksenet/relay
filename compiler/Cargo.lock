@@ -2156,6 +2156,7 @@ dependencies = [
  "relay-docblock",
  "relay-saved-state-loader",
  "relay-schema",
+ "relay-schema-generation",
  "relay-test-schema",
  "relay-transforms",
  "relay-typegen",

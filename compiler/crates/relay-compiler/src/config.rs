@@ -481,8 +481,15 @@ impl Config {
             initialize_resources: None,
             update_compiler_state_from_saved_state: None,
             has_schema_change_incremental_build: false,
-            custom_extract_relay_resolvers: None,
-            should_extract_full_source: None,
+            // ProjectName, &IndexMap<ScalarName, CustomType, BuildHasherDefault<FnvHasher>>, &CompilerState, Option<&GraphQLAsts>
+            custom_extract_relay_resolvers: Some(Box::new(
+                crate::custom_resolver_extract::custom_extract_resolver,
+            )),
+            should_extract_full_source: Some(Box::new(|content| {
+                println!("!!!!should_extract_full_source!!!!");
+                println!("{}", content);
+                true
+            })),
         };
 
         let mut validation_errors = Vec::new();
