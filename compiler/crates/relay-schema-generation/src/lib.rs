@@ -909,7 +909,7 @@ fn to_location<T: Range>(source_location: SourceLocationKey, node: &T) -> Locati
     Location::new(source_location, Span::new(range.start, range.end))
 }
 
-fn string_key_to_identifier(name: WithLocation<StringKey>) -> Identifier {
+pub fn string_key_to_identifier(name: WithLocation<StringKey>) -> Identifier {
     Identifier {
         span: name.location.span(),
         token: Token {
