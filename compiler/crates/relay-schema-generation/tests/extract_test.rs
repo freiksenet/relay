@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<f13b1b4958b25ba25752a80dba13d230>>
+ * @generated SignedSource<<fe029cb515a640d78a92a9e813a1af9a>>
  */
 
 mod extract;
@@ -52,4 +52,11 @@ async fn primitives() {
     let input = include_str!("extract/fixtures/primitives.js");
     let expected = include_str!("extract/fixtures/primitives.expected");
     test_fixture(transform_fixture, file!(), "primitives.js", "extract/fixtures/primitives.expected", input, expected).await;
+}
+
+#[tokio::test]
+async fn primitives_optional() {
+    let input = include_str!("extract/fixtures/primitives-optional.js");
+    let expected = include_str!("extract/fixtures/primitives-optional.expected");
+    test_fixture(transform_fixture, file!(), "primitives-optional.js", "extract/fixtures/primitives-optional.expected", input, expected).await;
 }

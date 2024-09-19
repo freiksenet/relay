@@ -98,4 +98,6 @@ pub enum SchemaGenerationError {
         module_name: StringKey,
         import_type: JSImportType,
     },
+    #[error("The LiveState expects to take a single generic argument LiveState<T>")]
+    LiveStateExpectedSingleGeneric,
 }

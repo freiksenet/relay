@@ -28,71 +28,48 @@ function ignored(user: User): Array<string | null | undefined> | null | undefine
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:212:225,
+            location: <generated>:204:256,
             item: "plural_string",
         },
-        return_type: GenericTypeAnnotation(
-            GenericTypeAnnotation {
-                id: Identifier(
-                    Identifier {
-                        name: "Array",
-                        binding: None,
-                        type_annotation: None,
-                        loc: None,
-                        range: SourceRange {
-                            start: 239,
-                            end: 244,
-                        },
+        return_type: TsTypeRef(
+            TsTypeRef {
+                span: 240..253,
+                type_name: Ident(
+                    Ident {
+                        span: 240..245,
+                        ctxt: #0,
+                        sym: "Array",
+                        optional: false,
                     },
                 ),
-                type_parameters: Some(
-                    TypeParameterInstantiation {
+                type_params: Some(
+                    TsTypeParamInstantiation {
+                        span: 245..253,
                         params: [
-                            StringTypeAnnotation(
-                                StringTypeAnnotation {
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 245,
-                                        end: 251,
-                                    },
+                            TsKeywordType(
+                                TsKeywordType {
+                                    span: 246..252,
+                                    kind: TsStringKeyword,
                                 },
                             ),
                         ],
-                        loc: None,
-                        range: SourceRange {
-                            start: 244,
-                            end: 252,
-                        },
                     },
                 ),
-                loc: None,
-                range: SourceRange {
-                    start: 239,
-                    end: 252,
-                },
             },
         ),
         entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 232,
-                                end: 236,
-                            },
+            TsTypeRef(
+                TsTypeRef {
+                    span: 233..237,
+                    type_name: Ident(
+                        Ident {
+                            span: 233..237,
+                            ctxt: #0,
+                            sym: "User",
+                            optional: false,
                         },
                     ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 232,
-                        end: 236,
-                    },
+                    type_params: None,
                 },
             ),
         ),
@@ -104,113 +81,69 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:276:298,
+            location: <generated>:268:348,
             item: "plural_optional_string",
         },
-        return_type: GenericTypeAnnotation(
-            GenericTypeAnnotation {
-                id: Identifier(
-                    Identifier {
-                        name: "Array",
-                        binding: None,
-                        type_annotation: None,
-                        loc: None,
-                        range: SourceRange {
-                            start: 312,
-                            end: 317,
-                        },
+        return_type: TsTypeRef(
+            TsTypeRef {
+                span: 313..345,
+                type_name: Ident(
+                    Ident {
+                        span: 313..318,
+                        ctxt: #0,
+                        sym: "Array",
+                        optional: false,
                     },
                 ),
-                type_parameters: Some(
-                    TypeParameterInstantiation {
+                type_params: Some(
+                    TsTypeParamInstantiation {
+                        span: 318..345,
                         params: [
-                            UnionTypeAnnotation(
-                                UnionTypeAnnotation {
-                                    types: [
-                                        StringTypeAnnotation(
-                                            StringTypeAnnotation {
-                                                loc: None,
-                                                range: SourceRange {
-                                                    start: 318,
-                                                    end: 324,
+                            TsUnionOrIntersectionType(
+                                TsUnionType(
+                                    TsUnionType {
+                                        span: 319..344,
+                                        types: [
+                                            TsKeywordType(
+                                                TsKeywordType {
+                                                    span: 319..325,
+                                                    kind: TsStringKeyword,
                                                 },
-                                            },
-                                        ),
-                                        NullLiteralTypeAnnotation(
-                                            NullLiteralTypeAnnotation {
-                                                loc: None,
-                                                range: SourceRange {
-                                                    start: 327,
-                                                    end: 331,
+                                            ),
+                                            TsKeywordType(
+                                                TsKeywordType {
+                                                    span: 328..332,
+                                                    kind: TsNullKeyword,
                                                 },
-                                            },
-                                        ),
-                                        GenericTypeAnnotation(
-                                            GenericTypeAnnotation {
-                                                id: Identifier(
-                                                    Identifier {
-                                                        name: "undefined",
-                                                        binding: None,
-                                                        type_annotation: None,
-                                                        loc: None,
-                                                        range: SourceRange {
-                                                            start: 334,
-                                                            end: 343,
-                                                        },
-                                                    },
-                                                ),
-                                                type_parameters: None,
-                                                loc: None,
-                                                range: SourceRange {
-                                                    start: 334,
-                                                    end: 343,
+                                            ),
+                                            TsKeywordType(
+                                                TsKeywordType {
+                                                    span: 335..344,
+                                                    kind: TsUndefinedKeyword,
                                                 },
-                                            },
-                                        ),
-                                    ],
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 318,
-                                        end: 343,
+                                            ),
+                                        ],
                                     },
-                                },
+                                ),
                             ),
                         ],
-                        loc: None,
-                        range: SourceRange {
-                            start: 317,
-                            end: 344,
-                        },
                     },
                 ),
-                loc: None,
-                range: SourceRange {
-                    start: 312,
-                    end: 344,
-                },
             },
         ),
         entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 305,
-                                end: 309,
-                            },
+            TsTypeRef(
+                TsTypeRef {
+                    span: 306..310,
+                    type_name: Ident(
+                        Ident {
+                            span: 306..310,
+                            ctxt: #0,
+                            sym: "User",
+                            optional: false,
                         },
                     ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 305,
-                        end: 309,
-                    },
+                    type_params: None,
                 },
             ),
         ),
@@ -222,113 +155,69 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:368:390,
+            location: <generated>:360:440,
             item: "optional_plural_string",
         },
-        return_type: UnionTypeAnnotation(
-            UnionTypeAnnotation {
-                types: [
-                    GenericTypeAnnotation(
-                        GenericTypeAnnotation {
-                            id: Identifier(
-                                Identifier {
-                                    name: "Array",
-                                    binding: None,
-                                    type_annotation: None,
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 404,
-                                        end: 409,
+        return_type: TsUnionOrIntersectionType(
+            TsUnionType(
+                TsUnionType {
+                    span: 405..437,
+                    types: [
+                        TsTypeRef(
+                            TsTypeRef {
+                                span: 405..418,
+                                type_name: Ident(
+                                    Ident {
+                                        span: 405..410,
+                                        ctxt: #0,
+                                        sym: "Array",
+                                        optional: false,
                                     },
-                                },
-                            ),
-                            type_parameters: Some(
-                                TypeParameterInstantiation {
-                                    params: [
-                                        StringTypeAnnotation(
-                                            StringTypeAnnotation {
-                                                loc: None,
-                                                range: SourceRange {
-                                                    start: 410,
-                                                    end: 416,
+                                ),
+                                type_params: Some(
+                                    TsTypeParamInstantiation {
+                                        span: 410..418,
+                                        params: [
+                                            TsKeywordType(
+                                                TsKeywordType {
+                                                    span: 411..417,
+                                                    kind: TsStringKeyword,
                                                 },
-                                            },
-                                        ),
-                                    ],
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 409,
-                                        end: 417,
+                                            ),
+                                        ],
                                     },
-                                },
-                            ),
-                            loc: None,
-                            range: SourceRange {
-                                start: 404,
-                                end: 417,
+                                ),
                             },
-                        },
-                    ),
-                    NullLiteralTypeAnnotation(
-                        NullLiteralTypeAnnotation {
-                            loc: None,
-                            range: SourceRange {
-                                start: 420,
-                                end: 424,
+                        ),
+                        TsKeywordType(
+                            TsKeywordType {
+                                span: 421..425,
+                                kind: TsNullKeyword,
                             },
-                        },
-                    ),
-                    GenericTypeAnnotation(
-                        GenericTypeAnnotation {
-                            id: Identifier(
-                                Identifier {
-                                    name: "undefined",
-                                    binding: None,
-                                    type_annotation: None,
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 427,
-                                        end: 436,
-                                    },
-                                },
-                            ),
-                            type_parameters: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 427,
-                                end: 436,
+                        ),
+                        TsKeywordType(
+                            TsKeywordType {
+                                span: 428..437,
+                                kind: TsUndefinedKeyword,
                             },
-                        },
-                    ),
-                ],
-                loc: None,
-                range: SourceRange {
-                    start: 404,
-                    end: 436,
+                        ),
+                    ],
                 },
-            },
+            ),
         ),
         entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 397,
-                                end: 401,
-                            },
+            TsTypeRef(
+                TsTypeRef {
+                    span: 398..402,
+                    type_name: Ident(
+                        Ident {
+                            span: 398..402,
+                            ctxt: #0,
+                            sym: "User",
+                            optional: false,
                         },
                     ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 397,
-                        end: 401,
-                    },
+                    type_params: None,
                 },
             ),
         ),
@@ -340,155 +229,90 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:460:491,
+            location: <generated>:452:560,
             item: "optional_plural_optional_string",
         },
-        return_type: UnionTypeAnnotation(
-            UnionTypeAnnotation {
-                types: [
-                    GenericTypeAnnotation(
-                        GenericTypeAnnotation {
-                            id: Identifier(
-                                Identifier {
-                                    name: "Array",
-                                    binding: None,
-                                    type_annotation: None,
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 505,
-                                        end: 510,
+        return_type: TsUnionOrIntersectionType(
+            TsUnionType(
+                TsUnionType {
+                    span: 506..557,
+                    types: [
+                        TsTypeRef(
+                            TsTypeRef {
+                                span: 506..538,
+                                type_name: Ident(
+                                    Ident {
+                                        span: 506..511,
+                                        ctxt: #0,
+                                        sym: "Array",
+                                        optional: false,
                                     },
-                                },
-                            ),
-                            type_parameters: Some(
-                                TypeParameterInstantiation {
-                                    params: [
-                                        UnionTypeAnnotation(
-                                            UnionTypeAnnotation {
-                                                types: [
-                                                    StringTypeAnnotation(
-                                                        StringTypeAnnotation {
-                                                            loc: None,
-                                                            range: SourceRange {
-                                                                start: 511,
-                                                                end: 517,
-                                                            },
-                                                        },
-                                                    ),
-                                                    NullLiteralTypeAnnotation(
-                                                        NullLiteralTypeAnnotation {
-                                                            loc: None,
-                                                            range: SourceRange {
-                                                                start: 520,
-                                                                end: 524,
-                                                            },
-                                                        },
-                                                    ),
-                                                    GenericTypeAnnotation(
-                                                        GenericTypeAnnotation {
-                                                            id: Identifier(
-                                                                Identifier {
-                                                                    name: "undefined",
-                                                                    binding: None,
-                                                                    type_annotation: None,
-                                                                    loc: None,
-                                                                    range: SourceRange {
-                                                                        start: 527,
-                                                                        end: 536,
-                                                                    },
+                                ),
+                                type_params: Some(
+                                    TsTypeParamInstantiation {
+                                        span: 511..538,
+                                        params: [
+                                            TsUnionOrIntersectionType(
+                                                TsUnionType(
+                                                    TsUnionType {
+                                                        span: 512..537,
+                                                        types: [
+                                                            TsKeywordType(
+                                                                TsKeywordType {
+                                                                    span: 512..518,
+                                                                    kind: TsStringKeyword,
                                                                 },
                                                             ),
-                                                            type_parameters: None,
-                                                            loc: None,
-                                                            range: SourceRange {
-                                                                start: 527,
-                                                                end: 536,
-                                                            },
-                                                        },
-                                                    ),
-                                                ],
-                                                loc: None,
-                                                range: SourceRange {
-                                                    start: 511,
-                                                    end: 536,
-                                                },
-                                            },
-                                        ),
-                                    ],
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 510,
-                                        end: 537,
+                                                            TsKeywordType(
+                                                                TsKeywordType {
+                                                                    span: 521..525,
+                                                                    kind: TsNullKeyword,
+                                                                },
+                                                            ),
+                                                            TsKeywordType(
+                                                                TsKeywordType {
+                                                                    span: 528..537,
+                                                                    kind: TsUndefinedKeyword,
+                                                                },
+                                                            ),
+                                                        ],
+                                                    },
+                                                ),
+                                            ),
+                                        ],
                                     },
-                                },
-                            ),
-                            loc: None,
-                            range: SourceRange {
-                                start: 505,
-                                end: 537,
+                                ),
                             },
-                        },
-                    ),
-                    NullLiteralTypeAnnotation(
-                        NullLiteralTypeAnnotation {
-                            loc: None,
-                            range: SourceRange {
-                                start: 540,
-                                end: 544,
+                        ),
+                        TsKeywordType(
+                            TsKeywordType {
+                                span: 541..545,
+                                kind: TsNullKeyword,
                             },
-                        },
-                    ),
-                    GenericTypeAnnotation(
-                        GenericTypeAnnotation {
-                            id: Identifier(
-                                Identifier {
-                                    name: "undefined",
-                                    binding: None,
-                                    type_annotation: None,
-                                    loc: None,
-                                    range: SourceRange {
-                                        start: 547,
-                                        end: 556,
-                                    },
-                                },
-                            ),
-                            type_parameters: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 547,
-                                end: 556,
+                        ),
+                        TsKeywordType(
+                            TsKeywordType {
+                                span: 548..557,
+                                kind: TsUndefinedKeyword,
                             },
-                        },
-                    ),
-                ],
-                loc: None,
-                range: SourceRange {
-                    start: 505,
-                    end: 556,
+                        ),
+                    ],
                 },
-            },
+            ),
         ),
         entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 498,
-                                end: 502,
-                            },
+            TsTypeRef(
+                TsTypeRef {
+                    span: 499..503,
+                    type_name: Ident(
+                        Ident {
+                            span: 499..503,
+                            ctxt: #0,
+                            sym: "User",
+                            optional: false,
                         },
                     ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 498,
-                        end: 502,
-                    },
+                    type_params: None,
                 },
             ),
         ),

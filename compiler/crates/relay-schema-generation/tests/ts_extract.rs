@@ -60,7 +60,6 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
         .into_iter()
         .filter_map(|item| {
             let (comment, node) = item;
-            println!("comment: {:?}", comment);
             match comment.as_str().trim() {
                 "extract" => match node {
                     ModuleItem::Stmt(Stmt::Decl(Decl::Fn(function))) => {

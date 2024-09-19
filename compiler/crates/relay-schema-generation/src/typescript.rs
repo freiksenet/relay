@@ -9,6 +9,7 @@
 
 use std::collections::hash_map::Entry;
 use std::fs::read_to_string;
+use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::primitive;
@@ -94,6 +95,7 @@ use crate::get_description;
 use crate::invert_custom_scalar_map;
 use crate::semantic_non_null_levels_to_directive;
 use crate::string_key_to_identifier;
+use crate::typescript_extract;
 use crate::FnvIndexMap;
 use crate::RelayResolverExtractor;
 
@@ -136,7 +138,6 @@ pub struct TSRelayResolverExtractor {
     custom_scalar_map: FnvIndexMap<CustomType, ScalarName>,
 }
 
-#[allow(dead_code)]
 struct UnresolvedTSFieldDefinition {
     entity_name: Option<WithLocation<StringKey>>,
     field_name: WithLocation<StringKey>,
@@ -174,67 +175,33 @@ impl TSRelayResolverExtractor {
     ) -> DiagnosticsResult<ResolverTypescriptData> {
         let ident = node.ident.sym.as_str();
 
+        // Field name is the function name
         let field_name = WithLocation {
             item: ident.intern(),
             location: Location::new(self.current_location.clone(), to_relay_span(node.span())),
         };
 
-        let return_type_annotation = node.function.return_type.as_ref().ok_or_else(|| {
-            Diagnostic::error(
-                SchemaGenerationError::MissingReturnType,
-                Location::new(self.current_location.clone(), to_relay_span(node.span())),
-            )
-        })?;
+        let (return_type, is_live) =
+            typescript_extract::extract_return_type_from_resolver_function(
+                node,
+                &self.current_location,
+            )?;
 
-        let (return_type_with_live, is_optional) =
-            unwrap_nullable_type(&return_type_annotation.type_ann, self.current_location)?;
+        // Entity type is the type of the first argument to the function
+        let entity_type = typescript_extract::extract_entity_type_from_resolver_function(
+            node,
+            &self.current_location,
+        )?;
 
-        let current_location =
-            Location::new(self.current_location.clone(), to_relay_span(node.span()));
-
-        let return_type = get_return_type(&return_type_with_live, current_location)?;
-
-        let entity_type = {
-            if node.function.params.is_empty() {
-                None
-            } else {
-                let param = &node.function.params[0].pat;
-
-                if let swc_ecma_ast::Pat::Ident(ident) = param {
-                    let type_annotation = ident
-                        .type_ann
-                        .as_ref()
-                        .ok_or_else(|| {
-                            Diagnostic::error(
-                                SchemaGenerationError::MissingParamType,
-                                Location::new(
-                                    self.current_location.clone(),
-                                    to_relay_span(ident.span()),
-                                ),
-                            )
-                        })?
-                        .clone();
-
-                    Some(*type_annotation.type_ann)
-                } else {
-                    let printed_param = swc_ecma_codegen::to_code(param);
-
-                    return Err(vec![Diagnostic::error(
-                        SchemaGenerationError::UnsupportedType {
-                            name: &printed_param.intern().lookup(),
-                        },
-                        Location::new(self.current_location.clone(), to_relay_span(node.span())),
-                    )]);
-                }
-            }
-        };
+        let arguments =
+            typescript_extract::extract_params_from_second_argument(node, &self.current_location)?;
 
         Ok(ResolverTypescriptData::Strong(FieldData {
             field_name,
             return_type,
             entity_type,
-            arguments: None,
-            is_live: None,
+            arguments,
+            is_live,
         }))
     }
 
@@ -743,7 +710,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                         WithLocation::new(field.field_name.location, intern!("Query"))
                     };
                     let arguments = if let Some(args) = field.arguments {
-                        Some(flow_type_to_field_arguments(
+                        Some(ts_type_to_field_arguments(
                             source_location,
                             &self.custom_scalar_map,
                             &args,
@@ -827,13 +794,12 @@ fn unsupported(name: &str, current_location: Location) -> DiagnosticsResult<TsTy
 }
 
 fn get_return_type(
-    return_type_with_live: &TsType,
+    return_type_with_live: TsType,
     current_location: Location,
 ) -> DiagnosticsResult<TsType> {
     let span = return_type_with_live.span();
-    let type_ann = return_type_with_live;
 
-    let primitive_type: DiagnosticsResult<TsType> = match type_ann {
+    let primitive_type: DiagnosticsResult<TsType> = match return_type_with_live.clone() {
         TsType::TsKeywordType(ts_keyword_type) => match ts_keyword_type.kind {
             swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => Ok(return_type_with_live.clone()),
             swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => Ok(return_type_with_live.clone()),
@@ -1272,7 +1238,7 @@ fn return_type_to_type_annotation(
     Ok((type_annotation, semantic_non_null_levels))
 }
 
-fn flow_type_to_field_arguments(
+fn ts_type_to_field_arguments(
     source_location: SourceLocationKey,
     custom_scalar_map: &FnvIndexMap<CustomType, ScalarName>,
     args_type: &TsType,

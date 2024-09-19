@@ -12,119 +12,80 @@ function favorite_page(user: User, args: {id: ID}): Page {}
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:211:224,
+            location: <generated>:203:262,
             item: "favorite_page",
         },
-        return_type: GenericTypeAnnotation(
-            GenericTypeAnnotation {
-                id: Identifier(
-                    Identifier {
-                        name: "Page",
-                        binding: None,
-                        type_annotation: None,
-                        loc: None,
-                        range: SourceRange {
-                            start: 254,
-                            end: 258,
-                        },
+        return_type: TsTypeRef(
+            TsTypeRef {
+                span: 255..259,
+                type_name: Ident(
+                    Ident {
+                        span: 255..259,
+                        ctxt: #0,
+                        sym: "Page",
+                        optional: false,
                     },
                 ),
-                type_parameters: None,
-                loc: None,
-                range: SourceRange {
-                    start: 254,
-                    end: 258,
-                },
+                type_params: None,
             },
         ),
         entity_type: Some(
-            GenericTypeAnnotation(
-                GenericTypeAnnotation {
-                    id: Identifier(
-                        Identifier {
-                            name: "User",
-                            binding: None,
-                            type_annotation: None,
-                            loc: None,
-                            range: SourceRange {
-                                start: 231,
-                                end: 235,
-                            },
+            TsTypeRef(
+                TsTypeRef {
+                    span: 232..236,
+                    type_name: Ident(
+                        Ident {
+                            span: 232..236,
+                            ctxt: #0,
+                            sym: "User",
+                            optional: false,
                         },
                     ),
-                    type_parameters: None,
-                    loc: None,
-                    range: SourceRange {
-                        start: 231,
-                        end: 235,
-                    },
+                    type_params: None,
                 },
             ),
         ),
         arguments: Some(
-            ObjectTypeAnnotation(
-                ObjectTypeAnnotation {
-                    properties: [
-                        ObjectTypeProperty(
-                            ObjectTypeProperty {
-                                key: Identifier(
-                                    Identifier {
-                                        name: "id",
-                                        binding: None,
-                                        type_annotation: None,
-                                        loc: None,
-                                        range: SourceRange {
-                                            start: 244,
-                                            end: 246,
-                                        },
+            TsTypeLit(
+                TsTypeLit {
+                    span: 244..252,
+                    members: [
+                        TsPropertySignature(
+                            TsPropertySignature {
+                                span: 245..251,
+                                readonly: false,
+                                key: Ident(
+                                    Ident {
+                                        span: 245..247,
+                                        ctxt: #0,
+                                        sym: "id",
+                                        optional: false,
                                     },
                                 ),
-                                value: GenericTypeAnnotation(
-                                    GenericTypeAnnotation {
-                                        id: Identifier(
-                                            Identifier {
-                                                name: "ID",
-                                                binding: None,
-                                                type_annotation: None,
-                                                loc: None,
-                                                range: SourceRange {
-                                                    start: 248,
-                                                    end: 250,
-                                                },
+                                computed: false,
+                                optional: false,
+                                type_ann: Some(
+                                    TsTypeAnn {
+                                        span: 247..251,
+                                        type_ann: TsTypeRef(
+                                            TsTypeRef {
+                                                span: 249..251,
+                                                type_name: Ident(
+                                                    Ident {
+                                                        span: 249..251,
+                                                        ctxt: #0,
+                                                        sym: "ID",
+                                                        optional: false,
+                                                    },
+                                                ),
+                                                type_params: None,
                                             },
                                         ),
-                                        type_parameters: None,
-                                        loc: None,
-                                        range: SourceRange {
-                                            start: 248,
-                                            end: 250,
-                                        },
                                     },
                                 ),
-                                method: false,
-                                optional: false,
-                                is_static: false,
-                                proto: false,
-                                variance: None,
-                                kind: Init,
-                                loc: None,
-                                range: SourceRange {
-                                    start: 244,
-                                    end: 250,
-                                },
                             },
                         ),
                     ],
-                    indexers: [],
-                    call_properties: [],
-                    internal_slots: [],
-                    inexact: false,
-                    exact: false,
-                    loc: None,
-                    range: SourceRange {
-                        start: 243,
-                        end: 251,
-                    },
                 },
             ),
         ),
