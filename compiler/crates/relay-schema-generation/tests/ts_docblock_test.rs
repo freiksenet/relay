@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<1b3616574971fceedda0ab403c14d88b>>
+ * @generated SignedSource<<23bcd4cd1ce8b7444e528d8071a1227b>>
  */
 
 mod ts_docblock;
@@ -17,13 +17,6 @@ async fn return_strong_object_directly_error() {
     let input = include_str!("ts_docblock/fixtures/return-strong-object-directly.error.ts");
     let expected = include_str!("ts_docblock/fixtures/return-strong-object-directly.error.expected");
     test_fixture(transform_fixture, file!(), "return-strong-object-directly.error.ts", "ts_docblock/fixtures/return-strong-object-directly.error.expected", input, expected).await;
-}
-
-#[tokio::test]
-async fn root_fragment() {
-    let input = include_str!("ts_docblock/fixtures/root-fragment.input");
-    let expected = include_str!("ts_docblock/fixtures/root-fragment.expected");
-    test_fixture(transform_fixture, file!(), "root-fragment.input", "ts_docblock/fixtures/root-fragment.expected", input, expected).await;
 }
 
 #[tokio::test]
