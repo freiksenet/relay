@@ -5,14 +5,12 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#![allow(unused)]
+#![deny(warnings)]
+#![deny(clippy::all)]
 
 use std::collections::hash_map::Entry;
-use std::fs::read_to_string;
-use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
-use std::primitive;
 use std::str::FromStr;
 
 use ::intern::intern;
@@ -27,21 +25,13 @@ use common::SourceLocationKey;
 use common::Span;
 use common::WithLocation;
 use docblock_shared::ResolverSourceHash;
-use docblock_shared::DEPRECATED_FIELD;
 use docblock_syntax::parse_docblock;
-use docblock_syntax::DocblockAST;
-use docblock_syntax::DocblockSection;
 use errors::try_all;
-use fnv::FnvBuildHasher;
 use graphql_ir::FragmentDefinitionName;
-use graphql_syntax::ConstantArgument;
-use graphql_syntax::ConstantDirective;
-use graphql_syntax::ConstantValue;
 use graphql_syntax::ExecutableDefinition;
 use graphql_syntax::FieldDefinition;
 use graphql_syntax::Identifier;
 use graphql_syntax::InputValueDefinition;
-use graphql_syntax::IntNode;
 use graphql_syntax::List;
 use graphql_syntax::ListTypeAnnotation;
 use graphql_syntax::NamedTypeAnnotation;
@@ -51,42 +41,33 @@ use graphql_syntax::Token;
 use graphql_syntax::TokenKind;
 use graphql_syntax::TypeAnnotation;
 use hermes_estree::SourceRange;
-use indexmap::IndexMap;
-use lazy_static::lazy_static;
 use relay_config::CustomType;
 use relay_config::CustomTypeImport;
 use relay_docblock::Argument;
 use relay_docblock::DocblockIr;
 use relay_docblock::IrField;
-use relay_docblock::PopulatedIrField;
 use relay_docblock::ResolverTypeDocblockIr;
 use relay_docblock::StrongObjectIr;
 use relay_docblock::TerseRelayResolverIr;
 use relay_docblock::UnpopulatedIrField;
 use relay_docblock::WeakObjectIr;
 use rustc_hash::FxHashMap;
-use schema_extractor::SchemaExtractor;
 use swc_common::comments::Comments;
 use swc_common::source_map::SmallPos;
 use swc_common::sync::Lrc;
 use swc_common::BytePos;
 use swc_common::Spanned;
 use swc_ecma_ast::Expr;
-use swc_ecma_ast::ModuleItem;
 use swc_ecma_ast::TsEntityName;
 use swc_ecma_ast::TsKeywordType;
 use swc_ecma_ast::TsKeywordTypeKind;
 use swc_ecma_ast::TsLit;
 use swc_ecma_ast::TsLitType;
 use swc_ecma_ast::TsType;
-use swc_ecma_ast::TsTypeAnn;
 use swc_ecma_ast::TsTypeElement;
 use swc_ecma_ast::TsTypeLit;
-use swc_ecma_ast::TsTypeRef;
-use swc_ecma_ast::TsUnionOrIntersectionType;
 
 use crate::errors::SchemaGenerationError;
-use crate::find_resolver_imports::ImportExportVisitor;
 use crate::find_resolver_imports::JSImportType;
 use crate::find_resolver_imports::ModuleResolution;
 use crate::find_resolver_imports::ModuleResolutionKey;
@@ -345,7 +326,9 @@ impl TSRelayResolverExtractor {
         &mut self,
         module_resolution: &ModuleResolution,
         name: WithLocation<StringKey>,
-        mut return_type: TsType,
+        // TODO: Fix this up
+        // mut return_type: TsType,
+        return_type: TsType,
         source_hash: ResolverSourceHash,
         is_live: Option<Location>,
         description: Option<WithLocation<StringKey>>,
@@ -400,7 +383,7 @@ impl TSRelayResolverExtractor {
                     DocblockIr::Type(ResolverTypeDocblockIr::StrongObjectResolver(strong_object)),
                 )
             }
-            TsType::TsTypeLit(object_type) => Err(vec![Diagnostic::error(
+            TsType::TsTypeLit(_) => Err(vec![Diagnostic::error(
                 SchemaGenerationError::ObjectNotSupported,
                 location,
             )]),
@@ -803,47 +786,6 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
     }
 }
 
-fn unsupported(name: &str, current_location: Location) -> DiagnosticsResult<TsType> {
-    let name = name.to_string().intern();
-    Err(vec![Diagnostic::error(
-        SchemaGenerationError::UnsupportedType {
-            name: name.lookup(),
-        },
-        current_location,
-    )])
-}
-
-fn get_return_type(
-    return_type_with_live: TsType,
-    current_location: Location,
-) -> DiagnosticsResult<TsType> {
-    let span = return_type_with_live.span();
-
-    let primitive_type: DiagnosticsResult<TsType> = match return_type_with_live.clone() {
-        TsType::TsKeywordType(ts_keyword_type) => match ts_keyword_type.kind {
-            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => Ok(return_type_with_live.clone()),
-            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => Ok(return_type_with_live.clone()),
-            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => Ok(return_type_with_live.clone()),
-            _ => unsupported("Unsupported type", current_location),
-        },
-        TsType::TsTypeRef(ts_type_ref) => {
-            // We only support type references with one type parameter
-            if ts_type_ref
-                .type_params
-                .as_ref()
-                .is_some_and(|params| params.params.len() > 1)
-            {
-                unsupported("Unsupported type", current_location)
-            } else {
-                Ok(return_type_with_live.clone())
-            }
-        }
-        _ => unsupported("Unsupported type", current_location),
-    };
-
-    primitive_type
-}
-
 fn extract_module_resolution(
     module: &swc_ecma_ast::Module,
     source_location: &SourceLocationKey,
@@ -927,12 +869,11 @@ fn unwrap_nullable_type(
     return_type: &swc_ecma_ast::TsType,
     source_location: SourceLocationKey,
 ) -> DiagnosticsResult<(swc_ecma_ast::TsType, bool)> {
-    let mut optional = false;
     let union_type = return_type.as_ts_union_or_intersection_type();
 
     let union_type = match union_type {
         Some(swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(ts_type)) => Some(ts_type),
-        Some(swc_ecma_ast::TsUnionOrIntersectionType::TsIntersectionType(ts_type)) => {
+        Some(swc_ecma_ast::TsUnionOrIntersectionType::TsIntersectionType(_)) => {
             return Err(vec![Diagnostic::error(
                 SchemaGenerationError::UnsupportedType {
                     name: format!("{:?}", return_type).leak(),
@@ -988,7 +929,7 @@ fn unwrap_nullable_type(
         None => {}
     };
 
-    Ok((return_type.clone(), optional))
+    Ok((return_type.clone(), false))
 }
 
 fn get_object_fields(
