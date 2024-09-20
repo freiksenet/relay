@@ -1,21 +1,18 @@
 use common::Diagnostic;
 use common::DiagnosticsResult;
 use common::Location;
-use common::SourceLocationKey;
-use common::Span;
 use intern::string_key::Intern;
 use intern::Lookup;
-use swc_common::source_map::SmallPos;
-use swc_common::Spanned;
 use swc_ecma_ast::TsType;
 
 use crate::errors::SchemaGenerationError;
+use crate::typescript::LocationHandler;
 
 pub static LIVE_STATE_TYPE_NAME: &str = "LiveState";
 
 pub fn extract_entity_type_from_resolver_function(
     node: &swc_ecma_ast::FnDecl,
-    current_location: &SourceLocationKey,
+    location_handler: &LocationHandler,
 ) -> DiagnosticsResult<Option<TsType>> {
     if node.function.params.is_empty() {
         Ok(None)
@@ -29,7 +26,7 @@ pub fn extract_entity_type_from_resolver_function(
                 .ok_or_else(|| {
                     Diagnostic::error(
                         SchemaGenerationError::MissingParamType,
-                        Location::new(current_location.clone(), to_relay_span(ident.span())),
+                        location_handler.to_location(ident),
                     )
                 })?
                 .clone();
@@ -42,7 +39,7 @@ pub fn extract_entity_type_from_resolver_function(
                 SchemaGenerationError::UnsupportedType {
                     name: &printed_param.intern().lookup(),
                 },
-                Location::new(current_location.clone(), to_relay_span(node.span())),
+                location_handler.to_location(node),
             )]);
         }
     }
@@ -50,7 +47,7 @@ pub fn extract_entity_type_from_resolver_function(
 
 pub fn extract_params_from_second_argument(
     node: &swc_ecma_ast::FnDecl,
-    current_location: &SourceLocationKey,
+    location_handler: &LocationHandler,
 ) -> DiagnosticsResult<Option<TsType>> {
     let params = &node.function.params;
     let arguments = if params.len() > 1 {
@@ -60,7 +57,7 @@ pub fn extract_params_from_second_argument(
             let type_annotation = ident.type_ann.as_ref().ok_or_else(|| {
                 Diagnostic::error(
                     SchemaGenerationError::MissingParamType,
-                    Location::new(current_location.clone(), to_relay_span(parent_param.span())),
+                    location_handler.to_location(parent_param),
                 )
             })?;
 
@@ -77,7 +74,7 @@ pub fn extract_params_from_second_argument(
 
 pub fn extract_return_type_from_resolver_function(
     node: &swc_ecma_ast::FnDecl,
-    current_location: &SourceLocationKey,
+    location_handler: &LocationHandler,
 ) -> DiagnosticsResult<(TsType, Option<Location>)> {
     // Return type is the return type annotation of the function
     let return_type_annotation = node
@@ -87,7 +84,7 @@ pub fn extract_return_type_from_resolver_function(
         .ok_or_else(|| {
             Diagnostic::error(
                 SchemaGenerationError::MissingReturnType,
-                Location::new(current_location.clone(), to_relay_span(node.span())),
+                location_handler.to_location(node),
             )
         })?
         .type_ann
@@ -108,7 +105,7 @@ pub fn extract_return_type_from_resolver_function(
                     SchemaGenerationError::UnsupportedType {
                         name: "Qualified names",
                     },
-                    Location::new(current_location.clone(), to_relay_span(ts_type_ref.span)),
+                    location_handler.to_location(ts_type_ref),
                 )]);
             }
 
@@ -121,7 +118,7 @@ pub fn extract_return_type_from_resolver_function(
                     SchemaGenerationError::UnsupportedType {
                         name: "Multiple type params",
                     },
-                    Location::new(current_location.clone(), to_relay_span(ts_type_ref.span)),
+                    location_handler.to_location(ts_type_ref),
                 )]);
             }
 
@@ -129,23 +126,20 @@ pub fn extract_return_type_from_resolver_function(
                 let type_params = ts_type_ref.type_params.as_ref().ok_or_else(|| {
                     Diagnostic::error(
                         SchemaGenerationError::LiveStateExpectedSingleGeneric,
-                        Location::new(current_location.clone(), to_relay_span(ts_type_ref.span)),
+                        location_handler.to_location(ts_type_ref),
                     )
                 })?;
 
                 let type_param: &Box<TsType> = type_params.params.first().ok_or_else(|| {
                     Diagnostic::error(
                         SchemaGenerationError::LiveStateExpectedSingleGeneric,
-                        Location::new(current_location.clone(), to_relay_span(type_params.span)),
+                        location_handler.to_location(type_params),
                     )
                 })?;
 
                 (
                     type_param.as_ref().clone(),
-                    Some(Location::new(
-                        current_location.clone(),
-                        to_relay_span(node.span()),
-                    )),
+                    Some(location_handler.to_location(node)),
                 )
             } else {
                 (return_type_annotation, None)
@@ -155,9 +149,4 @@ pub fn extract_return_type_from_resolver_function(
     };
 
     Ok((return_type, is_live))
-}
-
-// Duplicated from typescript.rs
-fn to_relay_span(span: swc_common::Span) -> Span {
-    Span::new(span.lo().to_u32(), span.hi().to_u32())
 }

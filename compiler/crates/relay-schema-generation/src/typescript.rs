@@ -53,6 +53,8 @@ use swc_common::comments::Comments;
 use swc_common::source_map::SmallPos;
 use swc_common::sync::Lrc;
 use swc_common::BytePos;
+use swc_common::SourceFile;
+use swc_common::SourceMap;
 use swc_common::Spanned;
 use swc_ecma_ast::Expr;
 use swc_ecma_ast::TsEntityName;
@@ -109,12 +111,11 @@ pub struct TSRelayResolverExtractor {
     resolved_field_definitions: Vec<TerseRelayResolverIr>,
     module_resolutions: FxHashMap<SourceLocationKey, ModuleResolution>,
 
-    // Needs to keep track of source location because hermes_parser currently
-    // does not embed the information
-    current_location: SourceLocationKey,
-
     // Used to map Flow types in return/argument types to GraphQL custom scalars
     custom_scalar_map: FnvIndexMap<CustomType, ScalarName>,
+
+    // Need to keep track of source files to map span to location
+    location_handler: Option<LocationHandler>,
 }
 
 struct UnresolvedTSFieldDefinition {
@@ -143,37 +144,33 @@ impl TSRelayResolverExtractor {
             unresolved_field_definitions: Default::default(),
             resolved_field_definitions: vec![],
             module_resolutions: Default::default(),
-            current_location: SourceLocationKey::generated(),
             custom_scalar_map: FnvIndexMap::default(),
+            location_handler: None,
         }
     }
 
     pub fn extract_function(
         &self,
         node: &swc_ecma_ast::FnDecl,
+        location_handler: &LocationHandler,
     ) -> DiagnosticsResult<ResolverTypescriptData> {
         let ident = node.ident.sym.as_str();
 
         // Field name is the function name
         let field_name = WithLocation {
             item: ident.intern(),
-            location: Location::new(self.current_location.clone(), to_relay_span(node.span())),
+            location: location_handler.to_location(&node.ident),
         };
 
         let (return_type, is_live) =
-            typescript_extract::extract_return_type_from_resolver_function(
-                node,
-                &self.current_location,
-            )?;
+            typescript_extract::extract_return_type_from_resolver_function(node, location_handler)?;
 
         // Entity type is the type of the first argument to the function
-        let entity_type = typescript_extract::extract_entity_type_from_resolver_function(
-            node,
-            &self.current_location,
-        )?;
+        let entity_type =
+            typescript_extract::extract_entity_type_from_resolver_function(node, location_handler)?;
 
         let arguments =
-            typescript_extract::extract_params_from_second_argument(node, &self.current_location)?;
+            typescript_extract::extract_params_from_second_argument(node, location_handler)?;
 
         Ok(ResolverTypescriptData::Strong(FieldData {
             field_name,
@@ -187,10 +184,11 @@ impl TSRelayResolverExtractor {
     fn extract_type_alias(
         &self,
         node: &swc_ecma_ast::TsTypeAliasDecl,
+        location_handler: &LocationHandler,
     ) -> DiagnosticsResult<WeakObjectData> {
         let field_name = WithLocation {
             item: (&node.id.sym.as_str()).intern(),
-            location: Location::new(self.current_location, to_relay_span(node.span())),
+            location: location_handler.to_location(node),
         };
         Ok(WeakObjectData {
             field_name,
@@ -201,36 +199,34 @@ impl TSRelayResolverExtractor {
     fn extract_entity_name(
         &self,
         entity_type: &swc_ecma_ast::TsType,
+        location_handler: &LocationHandler,
     ) -> DiagnosticsResult<WithLocation<StringKey>> {
-        let location = Location::new(self.current_location, to_relay_span(entity_type.span()));
+        let location = location_handler.to_location(entity_type);
         let result = match entity_type {
             TsType::TsTypeRef(type_ref) => Ok(WithLocation {
                 item: get_unqualified_identifier_or_fail(&type_ref.type_name, location)?.item,
-                location: Location::new(
-                    self.current_location,
-                    to_relay_span(type_ref.type_name.span()),
-                ),
+                location: location_handler.to_location(&type_ref.type_name),
             }),
             TsType::TsKeywordType(keyword_type) => match keyword_type.kind {
                 TsKeywordTypeKind::TsNumberKeyword => Ok(WithLocation {
                     item: intern!("Float"),
-                    location,
+                    location: location_handler.to_location(keyword_type),
                 }),
                 TsKeywordTypeKind::TsStringKeyword => Ok(WithLocation {
                     item: intern!("String"),
-                    location,
+                    location: location_handler.to_location(keyword_type),
                 }),
 
                 _ => Err(vec![Diagnostic::error(
                     SchemaGenerationError::UnexpectedNullableStrongType,
-                    Location::new(self.current_location, to_relay_span(entity_type.span())),
+                    location_handler.to_location(keyword_type),
                 )]),
             },
             _ => Err(vec![Diagnostic::error(
                 SchemaGenerationError::UnsupportedType {
                     name: format!("{:?}", entity_type).intern().lookup(),
                 },
-                Location::new(self.current_location, to_relay_span(entity_type.span())),
+                location,
             )]),
         };
 
@@ -248,26 +244,33 @@ impl TSRelayResolverExtractor {
         &self,
         node: &swc_ecma_ast::ModuleItem,
         range: SourceRange,
+        location_handler: &LocationHandler,
     ) -> DiagnosticsResult<ResolverTypescriptData> {
         if let swc_ecma_ast::ModuleItem::ModuleDecl(swc_ecma_ast::ModuleDecl::ExportDecl(
             ref node,
         )) = node
         {
             match &node.decl {
-                swc_ecma_ast::Decl::Fn(fn_node) => self.extract_function(fn_node),
+                swc_ecma_ast::Decl::Fn(fn_node) => self.extract_function(fn_node, location_handler),
                 swc_ecma_ast::Decl::TsTypeAlias(alias_node) => {
-                    let data = self.extract_type_alias(alias_node)?;
+                    let data = self.extract_type_alias(alias_node, location_handler)?;
                     Ok(ResolverTypescriptData::Weak(data))
                 }
                 _ => Err(vec![Diagnostic::error(
                     SchemaGenerationError::ExpectedFunctionOrTypeAlias,
-                    Location::new(self.current_location, Span::new(range.start, range.end)),
+                    Location::new(
+                        location_handler.source_location_key,
+                        Span::new(range.start, range.end),
+                    ),
                 )]),
             }
         } else {
             Err(vec![Diagnostic::error(
                 SchemaGenerationError::ExpectedNamedExport,
-                Location::new(self.current_location, Span::new(range.start, range.end)),
+                Location::new(
+                    location_handler.source_location_key,
+                    Span::new(range.start, range.end),
+                ),
             )])
         }
     }
@@ -277,6 +280,7 @@ impl TSRelayResolverExtractor {
         module_resolution: &ModuleResolution,
         fragment_definitions: Option<&Vec<ExecutableDefinition>>,
         mut field_definition: UnresolvedTSFieldDefinition,
+        location_handler: &LocationHandler,
     ) -> DiagnosticsResult<()> {
         if let Some(entity_name) = field_definition.entity_name {
             let name = entity_name.item;
@@ -313,7 +317,7 @@ impl TSRelayResolverExtractor {
             }
         }
         self.unresolved_field_definitions
-            .push((field_definition, self.current_location));
+            .push((field_definition, location_handler.source_location_key));
 
         Ok(())
     }
@@ -329,6 +333,7 @@ impl TSRelayResolverExtractor {
         source_hash: ResolverSourceHash,
         is_live: Option<Location>,
         description: Option<WithLocation<StringKey>>,
+        location_handler: &LocationHandler,
     ) -> DiagnosticsResult<()> {
         let strong_object = StrongObjectIr {
             type_name: string_key_to_identifier(name),
@@ -346,7 +351,7 @@ impl TSRelayResolverExtractor {
             semantic_non_null: None,
         };
 
-        let location = Location::new(self.current_location, to_relay_span(return_type.span()));
+        let location = location_handler.to_location(&return_type);
 
         // // We ignore nullable annotation since both nullable and non-nullable types are okay for
         // // defining a strong object
@@ -401,8 +406,9 @@ impl TSRelayResolverExtractor {
         source_module_path: &str,
         description: Option<WithLocation<StringKey>>,
         should_generate_fields: bool,
+        location_handler: &LocationHandler,
     ) -> DiagnosticsResult<()> {
-        let location = Location::new(self.current_location, to_relay_span(type_alias.span()));
+        let location = location_handler.to_location(&type_alias);
         let weak_object = WeakObjectIr {
             type_name: string_key_to_identifier(name),
             rhs_location: name.location,
@@ -446,7 +452,7 @@ impl TSRelayResolverExtractor {
                                         .name_with_location(weak_object.location.source_location()),
                                 ),
                             },
-                            self.current_location,
+                            location_handler.source_location_key,
                         ));
                         Ok(())
                     }))?;
@@ -509,7 +515,6 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
         fragment_definitions: Option<&Vec<ExecutableDefinition>>,
     ) -> DiagnosticsResult<()> {
         // Assume the caller knows the text contains at least one RelayResolver decorator
-        self.current_location = SourceLocationKey::standalone(source_module_path);
         let source_hash = ResolverSourceHash::new(text);
         let mut errors = Vec::new();
         let comments = swc_common::comments::SingleThreadedComments::default();
@@ -521,7 +526,11 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
             text.to_string(),
             BytePos::from_usize(text.len()),
         );
-        let parsed_module = swc_ecma_parser::parse_file_as_program(
+
+        let location_handler: LocationHandler =
+            LocationHandler::new(&source, SourceLocationKey::standalone(source_module_path));
+
+        let parsed_module = swc_ecma_parser::parse_file_as_module(
             &source,
             swc_ecma_parser::Syntax::Typescript(swc_ecma_parser::TsSyntax::default()),
             swc_ecma_ast::EsVersion::EsNext,
@@ -531,14 +540,14 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
         .map_err(|err| {
             let error = err.kind();
             let span = err.span();
-            Diagnostic::error(
-                error.msg(),
-                Location::new(self.current_location, to_relay_span(span)),
-            )
-        })?
-        .expect_module();
+            Diagnostic::error(error.msg(), location_handler.to_location(&span))
+        })?;
 
-        let module_resolution = extract_module_resolution(&parsed_module, &self.current_location);
+        let module_resolution = extract_module_resolution(
+            &parsed_module,
+            &location_handler.source_location_key,
+            |span| location_handler.to_location(span),
+        );
 
         let result = try_all(parsed_module.body.iter().map(|statement| {
             let pos = statement.span().lo();
@@ -555,12 +564,14 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                     .collect::<Vec<&str>>()
                     .join("\n");
                 if full_comment.contains("@RelayResolver") {
-                    let docblock = parse_docblock(&full_comment, self.current_location)?;
+                    let docblock =
+                        parse_docblock(&full_comment, location_handler.source_location_key)?;
                     let resolver_value = docblock.find_field(intern!("RelayResolver")).unwrap();
 
                     let deprecated = get_deprecated(&docblock);
                     let description = get_description(
                         &docblock,
+                        // TODO: Check if these should be characters pos?
                         SourceRange {
                             start: comment_span.lo().to_u32(),
                             end: comment_span.hi().to_u32(),
@@ -569,10 +580,12 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
 
                     let extracted_graphql = self.extract_graphql_types(
                         statement,
+                        // TODO: Check if these should be characters pos?
                         SourceRange {
                             start: comment_span.lo().to_u32(),
                             end: statement.span().hi().to_u32(),
                         },
+                        &location_handler,
                     )?;
 
                     match extracted_graphql {
@@ -596,9 +609,9 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                             };
                             if is_field_definition {
                                 let entity_name = match entity_type {
-                                    Some(entity_type) => {
-                                        Some(self.extract_entity_name(&entity_type)?)
-                                    }
+                                    Some(entity_type) => Some(
+                                        self.extract_entity_name(&entity_type, &location_handler)?,
+                                    ),
                                     None => None,
                                 };
 
@@ -617,6 +630,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                                         root_fragment: None,
                                         entity_type: None,
                                     },
+                                    &location_handler,
                                 )?
                             } else {
                                 self.add_type_definition(
@@ -626,6 +640,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                                     source_hash,
                                     is_live,
                                     description,
+                                    &location_handler,
                                 )?
                             }
                         }
@@ -641,6 +656,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                                 source_module_path,
                                 description,
                                 false,
+                                &location_handler,
                             )?
                         }
                     }
@@ -650,7 +666,11 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
         }));
 
         self.module_resolutions
-            .insert(self.current_location, module_resolution);
+            .insert(location_handler.source_location_key, module_resolution);
+
+        // Funkiness that this needs to be set up before we run .resolve(),
+        // but we can only set it up after we've parsed the module
+        self.location_handler = Some(location_handler);
 
         result?;
 
@@ -658,6 +678,10 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
     }
 
     fn resolve(mut self) -> DiagnosticsResult<(Vec<DocblockIr>, Vec<TerseRelayResolverIr>)> {
+        let location_handler = self
+            .location_handler
+            .expect("Expected location handler to exist");
+
         try_all(
             self.unresolved_field_definitions
                 .into_iter()
@@ -709,13 +733,13 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                         // Special case: we attach the field to the `Query` type when there is no entity
                         WithLocation::new(field.field_name.location, intern!("Query"))
                     };
-                    let arguments = if let Some(args) = field.arguments {
+                    let arguments = if let Some(args) = &field.arguments {
                         Some(ts_type_to_field_arguments(
-                            source_location,
                             &self.custom_scalar_map,
                             &args,
                             module_resolution,
                             &self.type_definitions,
+                            &location_handler,
                         )?)
                     } else {
                         None
@@ -724,7 +748,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                         (&arguments, &field.root_fragment)
                     {
                         relay_docblock::validate_fragment_arguments(
-                            source_location,
+                            location_handler.source_location_key,
                             field_arguments,
                             root_fragment.location.source_location(),
                             fragment_arguments,
@@ -739,12 +763,12 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                     });
                     let (type_annotation, semantic_non_null_levels) =
                         return_type_to_type_annotation(
-                            source_location,
                             &self.custom_scalar_map,
                             &field.return_type,
                             module_resolution,
                             &self.type_definitions,
                             true,
+                            &location_handler,
                         )?;
                     let field_definition = FieldDefinition {
                         name: string_key_to_identifier(field.field_name),
@@ -758,7 +782,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                     let live = field
                         .is_live
                         .map(|loc| UnpopulatedIrField { key_location: loc });
-                    let (root_fragment, fragment_arguments) = field.root_fragment.unzip();
+                    let (root_fragment, fragment_arguments) = field.root_fragment.clone().unzip();
                     self.resolved_field_definitions.push(TerseRelayResolverIr {
                         field: field_definition,
                         type_,
@@ -786,6 +810,7 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
 fn extract_module_resolution(
     module: &swc_ecma_ast::Module,
     source_location: &SourceLocationKey,
+    to_location: impl Fn(&dyn swc_common::Spanned) -> Location,
 ) -> ModuleResolution {
     let mut imports = FxHashMap::default();
     let mut exports = FxHashMap::default();
@@ -831,10 +856,7 @@ fn extract_module_resolution(
                             node.local.sym.as_str().intern(),
                             ModuleResolutionKey {
                                 module_name: source,
-                                import_type: JSImportType::Namespace(Location::new(
-                                    source_location.clone(),
-                                    to_relay_span(node.span),
-                                )),
+                                import_type: JSImportType::Namespace(to_location(&node.span)),
                             },
                         ),
                     }),
@@ -858,13 +880,33 @@ fn extract_module_resolution(
     ModuleResolution { imports, exports }
 }
 
-fn to_relay_span(span: swc_common::Span) -> Span {
-    Span::new(span.lo().to_u32(), span.hi().to_u32())
+pub struct LocationHandler {
+    source_file: Box<SourceFile>,
+    source_map: SourceMap,
+    pub source_location_key: SourceLocationKey,
+}
+
+impl LocationHandler {
+    fn new(source_file: &SourceFile, source_location_key: SourceLocationKey) -> Self {
+        Self {
+            source_file: Box::new(source_file.clone()),
+            source_map: SourceMap::default(),
+            source_location_key,
+        }
+    }
+
+    pub fn to_location<T: Spanned + ?Sized>(&self, node: &T) -> Location {
+        let (start, end) = self
+            .source_map
+            .span_to_char_offset(&self.source_file, node.span());
+
+        return Location::new(self.source_location_key, Span::new(start, end));
+    }
 }
 
 fn unwrap_nullable_type(
     return_type: &swc_ecma_ast::TsType,
-    source_location: SourceLocationKey,
+    location_handler: &LocationHandler,
 ) -> DiagnosticsResult<(swc_ecma_ast::TsType, bool)> {
     let union_type = return_type.as_ts_union_or_intersection_type();
 
@@ -875,7 +917,7 @@ fn unwrap_nullable_type(
                 SchemaGenerationError::UnsupportedType {
                     name: format!("{:?}", return_type).leak(),
                 },
-                to_location(source_location, return_type),
+                location_handler.to_location(&return_type.span()),
             )]);
         }
         None => None,
@@ -973,22 +1015,22 @@ fn get_unqualified_identifier_or_fail(
 /// The second return value is a list of semantic non-null levels.
 /// If empty, the value is not semantically non-null.
 fn return_type_to_type_annotation(
-    source_location: SourceLocationKey,
     custom_scalar_map: &FnvIndexMap<CustomType, ScalarName>,
     return_type: &TsType,
     module_resolution: &ModuleResolution,
     type_definitions: &FxHashMap<ModuleResolutionKey, DocblockIr>,
     use_semantic_non_null: bool,
+    location_handler: &LocationHandler,
 ) -> DiagnosticsResult<(TypeAnnotation, Vec<i64>)> {
-    let (return_type, mut is_optional) = unwrap_nullable_type(return_type, source_location)?;
+    let (return_type, mut is_optional) = unwrap_nullable_type(return_type, location_handler)?;
     let mut semantic_non_null_levels: Vec<i64> = vec![];
 
-    let location = to_location(source_location, &return_type);
+    let location = location_handler.to_location(&return_type);
     let type_annotation: TypeAnnotation = match return_type {
         TsType::TsTypeRef(node) => {
             let identifier = get_unqualified_identifier_or_fail(
                 &node.type_name,
-                to_location(source_location, &node.type_name),
+                location_handler.to_location(&node.type_name),
             )?;
             match &node.type_params {
                 None => {
@@ -1051,7 +1093,6 @@ fn return_type_to_type_annotation(
                             let param = &type_parameters.params[0];
                             let (type_annotation, inner_semantic_non_null_levels) =
                                 return_type_to_type_annotation(
-                                    source_location,
                                     custom_scalar_map,
                                     param,
                                     module_resolution,
@@ -1060,6 +1101,7 @@ fn return_type_to_type_annotation(
                                     // non-null items doesn't need to express that a single item will be null
                                     // due to error. So, array items can just be regular non-null.
                                     false,
+                                    location_handler,
                                 )?;
 
                             // increment each inner level by one
@@ -1076,7 +1118,7 @@ fn return_type_to_type_annotation(
                         }
                         "IdOf" => {
                             let param = &type_parameters.params[0].as_ref();
-                            let location = to_location(source_location, param);
+                            let location = location_handler.to_location(param);
                             if let TsType::TsLitType(TsLitType {
                                 lit: TsLit::Str(str),
                                 ..
@@ -1139,7 +1181,7 @@ fn return_type_to_type_annotation(
         ) => {
             let identifier = WithLocation {
                 item: intern!("String"),
-                location: to_location(source_location, &node),
+                location: location_handler.to_location(&node),
             };
             TypeAnnotation::Named(NamedTypeAnnotation {
                 name: string_key_to_identifier(identifier),
@@ -1153,7 +1195,7 @@ fn return_type_to_type_annotation(
         ) => {
             let identifier = WithLocation {
                 item: intern!("Float"),
-                location: to_location(source_location, &node),
+                location: location_handler.to_location(&node),
             };
             TypeAnnotation::Named(NamedTypeAnnotation {
                 name: string_key_to_identifier(identifier),
@@ -1167,7 +1209,7 @@ fn return_type_to_type_annotation(
         ) => {
             let identifier = WithLocation {
                 item: intern!("Boolean"),
-                location: to_location(source_location, &node),
+                location: location_handler.to_location(&node),
             };
             TypeAnnotation::Named(NamedTypeAnnotation {
                 name: string_key_to_identifier(identifier),
@@ -1181,7 +1223,7 @@ fn return_type_to_type_annotation(
         ) => {
             let identifier = WithLocation {
                 item: intern!("Boolean"),
-                location: to_location(source_location, &node),
+                location: location_handler.to_location(&node),
             };
             TypeAnnotation::Named(NamedTypeAnnotation {
                 name: string_key_to_identifier(identifier),
@@ -1216,11 +1258,11 @@ fn return_type_to_type_annotation(
 }
 
 fn ts_type_to_field_arguments(
-    source_location: SourceLocationKey,
     custom_scalar_map: &FnvIndexMap<CustomType, ScalarName>,
     args_type: &TsType,
     module_resolution: &ModuleResolution,
     type_definitions: &FxHashMap<ModuleResolutionKey, DocblockIr>,
+    location_handler: &LocationHandler,
 ) -> DiagnosticsResult<List<InputValueDefinition>> {
     let obj = if let TsType::TsTypeLit(type_) = &args_type {
         // unwrap the ref then the box, then re-add the ref
@@ -1228,38 +1270,38 @@ fn ts_type_to_field_arguments(
     } else {
         return Err(vec![Diagnostic::error(
             SchemaGenerationError::IncorrectArgumentsDefinition,
-            to_location(source_location, args_type),
+            location_handler.to_location(args_type),
         )]);
     };
     let mut items = vec![];
     for prop_type in obj.members.iter() {
-        let prop_span = to_location(source_location, prop_type).span();
+        let prop_span = location_handler.to_location(prop_type).span();
         if let TsTypeElement::TsPropertySignature(prop) = prop_type {
             let ident = if let Expr::Ident(ident) = prop.key.as_ref() {
                 ident
             } else {
                 return Err(vec![Diagnostic::error(
                     SchemaGenerationError::IncorrectArgumentsDefinition,
-                    to_location(source_location, &prop.key),
+                    location_handler.to_location(&prop.key),
                 )]);
             };
 
-            let name_span = to_location(source_location, ident).span();
+            let name_span = location_handler.to_location(ident).span();
             let (type_annotation, _) = return_type_to_type_annotation(
-                source_location,
                 custom_scalar_map,
                 &prop
                     .type_ann
                     .as_ref()
                     .ok_or(vec![Diagnostic::error(
                         SchemaGenerationError::IncorrectArgumentsDefinition,
-                        to_location(source_location, prop),
+                        location_handler.to_location(prop),
                     )])?
                     .type_ann
                     .as_ref(),
                 module_resolution,
                 type_definitions,
                 false, // Semantic-non-null doesn't make sense for argument types.
+                location_handler,
             )?;
             let arg = InputValueDefinition {
                 name: graphql_syntax::Identifier {
@@ -1283,7 +1325,7 @@ fn ts_type_to_field_arguments(
     let list_end: u32 = args_type.span_hi().to_u32();
     Ok(List {
         items,
-        span: to_location(source_location, args_type).span(),
+        span: location_handler.to_location(args_type).span(),
         start: Token {
             span: Span {
                 start: list_start,
@@ -1299,9 +1341,4 @@ fn ts_type_to_field_arguments(
             kind: TokenKind::CloseBrace,
         },
     })
-}
-
-fn to_location<T: Spanned>(source_location: SourceLocationKey, node: &T) -> Location {
-    let span = node.span();
-    Location::new(source_location, to_relay_span(span))
 }

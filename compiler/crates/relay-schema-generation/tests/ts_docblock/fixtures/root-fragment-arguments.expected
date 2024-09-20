@@ -51,9 +51,9 @@ Field(
                 type_: Named(
                     NamedTypeAnnotation {
                         name: Identifier {
-                            span: 569:575,
+                            span: 568:574,
                             token: Token {
-                                span: 569:575,
+                                span: 568:574,
                                 kind: Identifier,
                             },
                             value: "String",
@@ -110,13 +110,13 @@ Field(
                 ],
             ),
             source_hash: ResolverSourceHash(
-                "d534da5736dd3e656f91a8593a50b413",
+                "a1f413364c238ae89c4792959ad991fe",
             ),
         },
     ),
 )
 extend type Cat {
-  picture(size: Int): String @relay_resolver(fragment_name: "CatIsHungryFragment", has_output_type: true, import_name: "picture", import_path: "module.js") @resolver_source_hash(value: "d534da5736dd3e656f91a8593a50b413")
+  picture(size: Int): String @relay_resolver(fragment_name: "CatIsHungryFragment", has_output_type: true, import_name: "picture", import_path: "module.js") @resolver_source_hash(value: "a1f413364c238ae89c4792959ad991fe")
 }
 
 
@@ -145,12 +145,12 @@ Type(
             location: module.js:449:452,
             implements_interfaces: [],
             source_hash: ResolverSourceHash(
-                "d534da5736dd3e656f91a8593a50b413",
+                "a1f413364c238ae89c4792959ad991fe",
             ),
         },
     ),
 )
 type Cat @__RelayResolverModel {
   id: ID!
-  __relay_model_instance: RelayResolverValue! @relay_resolver(generated_fragment: true, fragment_name: "Cat__id", import_name: "Cat", import_path: "module.js", inject_fragment_data: "id") @resolver_source_hash(value: "d534da5736dd3e656f91a8593a50b413") @unselectable(reason: "This field is intended only for Relay's internal use")
+  __relay_model_instance: RelayResolverValue! @relay_resolver(generated_fragment: true, fragment_name: "Cat__id", import_name: "Cat", import_path: "module.js", inject_fragment_data: "id") @resolver_source_hash(value: "a1f413364c238ae89c4792959ad991fe") @unselectable(reason: "This field is intended only for Relay's internal use")
 }

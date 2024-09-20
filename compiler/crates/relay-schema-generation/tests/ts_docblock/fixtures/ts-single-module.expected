@@ -32,7 +32,6 @@ export function name(cat: CatFlowType): string | null | undefined {
 export function hungry(cat: CatFlowType): number | null | undefined {
   return 5;
 }
-
 ==================================== OUTPUT ===================================
 Field(
     TerseRelayResolver(
@@ -49,9 +48,9 @@ Field(
                 type_: Named(
                     NamedTypeAnnotation {
                         name: Identifier {
-                            span: 495:501,
+                            span: 512:518,
                             token: Token {
-                                span: 495:501,
+                                span: 512:518,
                                 kind: Identifier,
                             },
                             value: "Float",
@@ -65,23 +64,23 @@ Field(
                 span: 20:29,
             },
             type_: WithLocation {
-                location: module.js:272:275,
+                location: module.ts:272:275,
                 item: "Cat",
             },
             root_fragment: None,
             deprecated: None,
             semantic_non_null: None,
             live: None,
-            location: module.js:20:29,
+            location: module.ts:20:29,
             fragment_arguments: None,
             source_hash: ResolverSourceHash(
-                "7bbe33db29d93d787719b8c25219f5a0",
+                "364dbc372c5eb31b5ef321b24e34e0e9",
             ),
         },
     ),
 )
 extend type Cat {
-  is_hungry: Float @relay_resolver(fragment_name: "Cat____relay_model_instance", generated_fragment: true, inject_fragment_data: "__relay_model_instance", has_output_type: true, import_name: "is_hungry", import_path: "module.js") @resolver_source_hash(value: "7bbe33db29d93d787719b8c25219f5a0")
+  is_hungry: Float @relay_resolver(fragment_name: "Cat____relay_model_instance", generated_fragment: true, inject_fragment_data: "__relay_model_instance", has_output_type: true, import_name: "is_hungry", import_path: "module.ts") @resolver_source_hash(value: "364dbc372c5eb31b5ef321b24e34e0e9")
 }
 
 
@@ -100,9 +99,9 @@ Field(
                 type_: Named(
                     NamedTypeAnnotation {
                         name: Identifier {
-                            span: 387:393,
+                            span: 386:392,
                             token: Token {
-                                span: 387:393,
+                                span: 386:392,
                                 kind: Identifier,
                             },
                             value: "String",
@@ -116,23 +115,23 @@ Field(
                 span: 362:366,
             },
             type_: WithLocation {
-                location: module.js:272:275,
+                location: module.ts:272:275,
                 item: "Cat",
             },
             root_fragment: None,
             deprecated: None,
             semantic_non_null: None,
             live: None,
-            location: module.js:362:366,
+            location: module.ts:362:366,
             fragment_arguments: None,
             source_hash: ResolverSourceHash(
-                "7bbe33db29d93d787719b8c25219f5a0",
+                "364dbc372c5eb31b5ef321b24e34e0e9",
             ),
         },
     ),
 )
 extend type Cat {
-  name: String @relay_resolver(fragment_name: "Cat____relay_model_instance", generated_fragment: true, inject_fragment_data: "__relay_model_instance", has_output_type: true, import_name: "name", import_path: "module.js") @resolver_source_hash(value: "7bbe33db29d93d787719b8c25219f5a0")
+  name: String @relay_resolver(fragment_name: "Cat____relay_model_instance", generated_fragment: true, inject_fragment_data: "__relay_model_instance", has_output_type: true, import_name: "name", import_path: "module.ts") @resolver_source_hash(value: "364dbc372c5eb31b5ef321b24e34e0e9")
 }
 
 
@@ -147,9 +146,9 @@ Type(
                 },
                 value: "Cat",
             },
-            rhs_location: module.js:272:275,
+            rhs_location: module.ts:272:275,
             root_fragment: WithLocation {
-                location: module.js:272:275,
+                location: module.ts:272:275,
                 item: FragmentDefinitionName(
                     "Cat__id",
                 ),
@@ -158,15 +157,15 @@ Type(
             deprecated: None,
             live: None,
             semantic_non_null: None,
-            location: module.js:272:275,
+            location: module.ts:272:275,
             implements_interfaces: [],
             source_hash: ResolverSourceHash(
-                "7bbe33db29d93d787719b8c25219f5a0",
+                "364dbc372c5eb31b5ef321b24e34e0e9",
             ),
         },
     ),
 )
 type Cat @__RelayResolverModel {
   id: ID!
-  __relay_model_instance: RelayResolverValue! @relay_resolver(generated_fragment: true, fragment_name: "Cat__id", import_name: "Cat", import_path: "module.js", inject_fragment_data: "id") @resolver_source_hash(value: "7bbe33db29d93d787719b8c25219f5a0") @unselectable(reason: "This field is intended only for Relay's internal use")
+  __relay_model_instance: RelayResolverValue! @relay_resolver(generated_fragment: true, fragment_name: "Cat__id", import_name: "Cat", import_path: "module.ts", inject_fragment_data: "id") @resolver_source_hash(value: "364dbc372c5eb31b5ef321b24e34e0e9") @unselectable(reason: "This field is intended only for Relay's internal use")
 }
