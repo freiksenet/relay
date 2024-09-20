@@ -5,9 +5,6 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#![deny(warnings)]
-#![deny(clippy::all)]
-
 use std::collections::hash_map::Entry;
 use std::path::Path;
 use std::path::PathBuf;
