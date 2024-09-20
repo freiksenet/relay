@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#![allow(dead_code, unused)]
+#![allow(unused)]
 
 use std::collections::hash_map::Entry;
 use std::fs::read_to_string;
@@ -82,6 +82,7 @@ use swc_ecma_ast::TsType;
 use swc_ecma_ast::TsTypeAnn;
 use swc_ecma_ast::TsTypeElement;
 use swc_ecma_ast::TsTypeLit;
+use swc_ecma_ast::TsTypeRef;
 use swc_ecma_ast::TsUnionOrIntersectionType;
 
 use crate::errors::SchemaGenerationError;
@@ -225,6 +226,13 @@ impl TSRelayResolverExtractor {
     ) -> DiagnosticsResult<WithLocation<StringKey>> {
         let location = Location::new(self.current_location, to_relay_span(entity_type.span()));
         let result = match entity_type {
+            TsType::TsTypeRef(type_ref) => Ok(WithLocation {
+                item: get_unqualified_identifier_or_fail(&type_ref.type_name, location)?.item,
+                location: Location::new(
+                    self.current_location,
+                    to_relay_span(type_ref.type_name.span()),
+                ),
+            }),
             TsType::TsKeywordType(keyword_type) => match keyword_type.kind {
                 TsKeywordTypeKind::TsNumberKeyword => Ok(WithLocation {
                     item: intern!("Float"),
@@ -234,9 +242,18 @@ impl TSRelayResolverExtractor {
                     item: intern!("String"),
                     location,
                 }),
-                _ => Err(()),
+
+                _ => Err(vec![Diagnostic::error(
+                    SchemaGenerationError::UnexpectedNullableStrongType,
+                    Location::new(self.current_location, to_relay_span(entity_type.span())),
+                )]),
             },
-            _ => Err(()),
+            _ => Err(vec![Diagnostic::error(
+                SchemaGenerationError::UnsupportedType {
+                    name: format!("{:?}", entity_type).intern().lookup(),
+                },
+                Location::new(self.current_location, to_relay_span(entity_type.span())),
+            )]),
         };
 
         result.map_err(|_e| {
@@ -371,13 +388,11 @@ impl TSRelayResolverExtractor {
                     )]
                 })?;
                 if let JSImportType::Namespace(import_location) = key.import_type {
-                    return Err(vec![
-                        Diagnostic::error(
-                            SchemaGenerationError::UseNamedOrDefaultImport,
-                            name.location,
-                        )
-                        .annotate(format!("{} is imported from", name.item), import_location),
-                    ]);
+                    return Err(vec![Diagnostic::error(
+                        SchemaGenerationError::UseNamedOrDefaultImport,
+                        name.location,
+                    )
+                    .annotate(format!("{} is imported from", name.item), import_location)]);
                 };
 
                 self.insert_type_definition(
@@ -482,16 +497,14 @@ impl TSRelayResolverExtractor {
         data: DocblockIr,
     ) -> DiagnosticsResult<()> {
         match self.type_definitions.entry(key) {
-            Entry::Occupied(entry) => Err(vec![
-                Diagnostic::error(
-                    SchemaGenerationError::DuplicateTypeDefinitions {
-                        module_name: entry.key().module_name,
-                        import_type: entry.key().import_type,
-                    },
-                    data.location(),
-                )
-                .annotate("Previous type definition", entry.get().location()),
-            ]),
+            Entry::Occupied(entry) => Err(vec![Diagnostic::error(
+                SchemaGenerationError::DuplicateTypeDefinitions {
+                    module_name: entry.key().module_name,
+                    import_type: entry.key().import_type,
+                },
+                data.location(),
+            )
+            .annotate("Previous type definition", entry.get().location())]),
             Entry::Vacant(entry) => {
                 entry.insert(data);
                 Ok(())
@@ -509,7 +522,6 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
         Ok(())
     }
 
-    #[allow(dead_code, unused)]
     fn parse_document(
         &mut self,
         text: &str,
@@ -574,13 +586,16 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
                             end: comment_span.hi().to_u32(),
                         },
                     )?;
-                    match self.extract_graphql_types(
+
+                    let extracted_graphql = self.extract_graphql_types(
                         statement,
                         SourceRange {
                             start: comment_span.lo().to_u32(),
                             end: statement.span().hi().to_u32(),
                         },
-                    )? {
+                    )?;
+
+                    match extracted_graphql {
                         ResolverTypescriptData::Strong(FieldData {
                             field_name,
                             return_type,
@@ -653,6 +668,11 @@ impl RelayResolverExtractor for TSRelayResolverExtractor {
             }
             Ok(())
         }));
+
+        self.module_resolutions
+            .insert(self.current_location, module_resolution);
+
+        result?;
 
         Ok(())
     }
@@ -942,9 +962,28 @@ fn unwrap_nullable_type(
                 .collect::<Vec<_>>()
                 .is_empty();
 
-            let non_optional_type = ts_type.types.iter();
+            let non_optional_type = ts_type
+                .types
+                .iter()
+                .filter(|type_ann| match type_ann.as_ts_keyword_type() {
+                    Some(ts_keyword_type) => match ts_keyword_type.kind {
+                        swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword => false,
+                        swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword => false,
+                        _ => true,
+                    },
+                    _ => true,
+                })
+                .collect::<Vec<_>>();
 
-            return Ok((return_type.clone(), is_required));
+            return Ok((
+                non_optional_type
+                    .first()
+                    .unwrap()
+                    .to_owned()
+                    .as_ref()
+                    .clone(),
+                !is_required,
+            ));
         }
         None => {}
     };
@@ -1070,7 +1109,7 @@ fn return_type_to_type_annotation(
                 Some(type_parameters) if type_parameters.params.len() == 1 => {
                     let identifier_name = identifier.item.lookup();
                     match identifier_name {
-                        "Array" | "$ReadOnlyArray" => {
+                        "Array" | "ReadOnlyArray" => {
                             let param = &type_parameters.params[0];
                             let (type_annotation, inner_semantic_non_null_levels) =
                                 return_type_to_type_annotation(

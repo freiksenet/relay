@@ -43,9 +43,7 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
     let project_fixture = ProjectFixture::deserialize(fixture.content);
 
     let custom_scalar_types = get_custom_scalar_types();
-
     let mut extractor = TSRelayResolverExtractor::new();
-
     if let Err(err) = extractor.set_custom_scalar_map(&custom_scalar_types) {
         errors.extend(err);
     }
