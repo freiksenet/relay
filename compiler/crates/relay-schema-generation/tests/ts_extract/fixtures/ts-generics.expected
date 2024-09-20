@@ -18,7 +18,7 @@ function live_array_generic_optinal_user(user: User): LiveState<Array<Generic<Us
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:203:253,
+            location: <generated>:211:220,
             item: "live_user",
         },
         return_type: TsTypeRef(
@@ -53,7 +53,7 @@ Strong(
         ),
         arguments: None,
         is_live: Some(
-            <generated>:203:253,
+            <generated>:202:252,
         ),
     },
 )
@@ -61,7 +61,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:265:332,
+            location: <generated>:273:290,
             item: "live_generic_user",
         },
         return_type: TsTypeRef(
@@ -116,7 +116,7 @@ Strong(
         ),
         arguments: None,
         is_live: Some(
-            <generated>:265:332,
+            <generated>:264:331,
         ),
     },
 )
@@ -124,7 +124,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:344:451,
+            location: <generated>:352:383,
             item: "live_array_generic_optinal_user",
         },
         return_type: TsTypeRef(
@@ -220,7 +220,7 @@ Strong(
         ),
         arguments: None,
         is_live: Some(
-            <generated>:344:451,
+            <generated>:343:450,
         ),
     },
 )

@@ -887,7 +887,7 @@ pub struct LocationHandler {
 }
 
 impl LocationHandler {
-    fn new(source_file: &SourceFile, source_location_key: SourceLocationKey) -> Self {
+    pub fn new(source_file: &SourceFile, source_location_key: SourceLocationKey) -> Self {
         Self {
             source_file: Box::new(source_file.clone()),
             source_map: SourceMap::default(),

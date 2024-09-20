@@ -18,7 +18,7 @@ function string(user: User): string | null | undefined {}
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:203:240,
+            location: <generated>:211:213,
             item: "id",
         },
         return_type: TsUnionOrIntersectionType(
@@ -74,7 +74,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:252:302,
+            location: <generated>:260:266,
             item: "number",
         },
         return_type: TsUnionOrIntersectionType(
@@ -122,7 +122,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:314:371,
+            location: <generated>:322:328,
             item: "string",
         },
         return_type: TsUnionOrIntersectionType(

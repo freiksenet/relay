@@ -93,6 +93,7 @@ use relay_docblock::WeakObjectIr;
 use rustc_hash::FxHashMap;
 use schema_extractor::SchemaExtractor;
 
+pub use self::typescript::LocationHandler;
 pub use self::typescript::TSRelayResolverExtractor;
 
 pub static LIVE_FLOW_TYPE_NAME: &str = "LiveState";
@@ -285,13 +286,11 @@ impl FlowRelayResolverExtractor {
                     )]
                 })?;
                 if let JSImportType::Namespace(import_location) = key.import_type {
-                    return Err(vec![
-                        Diagnostic::error(
-                            SchemaGenerationError::UseNamedOrDefaultImport,
-                            name.location,
-                        )
-                        .annotate(format!("{} is imported from", name.item), import_location),
-                    ]);
+                    return Err(vec![Diagnostic::error(
+                        SchemaGenerationError::UseNamedOrDefaultImport,
+                        name.location,
+                    )
+                    .annotate(format!("{} is imported from", name.item), import_location)]);
                 };
 
                 self.insert_type_definition(
@@ -473,16 +472,14 @@ impl FlowRelayResolverExtractor {
         data: DocblockIr,
     ) -> DiagnosticsResult<()> {
         match self.type_definitions.entry(key) {
-            Entry::Occupied(entry) => Err(vec![
-                Diagnostic::error(
-                    SchemaGenerationError::DuplicateTypeDefinitions {
-                        module_name: entry.key().module_name,
-                        import_type: entry.key().import_type,
-                    },
-                    data.location(),
-                )
-                .annotate("Previous type definition", entry.get().location()),
-            ]),
+            Entry::Occupied(entry) => Err(vec![Diagnostic::error(
+                SchemaGenerationError::DuplicateTypeDefinitions {
+                    module_name: entry.key().module_name,
+                    import_type: entry.key().import_type,
+                },
+                data.location(),
+            )
+            .annotate("Previous type definition", entry.get().location())]),
             Entry::Vacant(entry) => {
                 entry.insert(data);
                 Ok(())
@@ -1283,9 +1280,8 @@ fn generated_token() -> Token {
 }
 
 lazy_static! {
-    static ref FLOW_PRIMATIVES: HashSet<&'static str> = HashSet::from([
-        "boolean", "string", "number", "null", "void", "symbol", "bigint",
-    ]);
+    static ref FLOW_PRIMATIVES: HashSet<&'static str> =
+        HashSet::from(["boolean", "string", "number", "null", "void", "symbol", "bigint",]);
 }
 fn invert_custom_scalar_map(
     custom_scalar_types: &FnvIndexMap<ScalarName, CustomType>,

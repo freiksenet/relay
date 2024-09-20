@@ -22,7 +22,7 @@ function name(user: User): Genric<boolean, string> {
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:204:231,
+            location: <generated>:212:216,
             item: "name",
         },
         return_type: TsKeywordType(
@@ -39,17 +39,17 @@ Strong(
 
 ✖︎ Qualified names is not supported
 
-  <generated>:14:29
+  <generated>:14:28
    13 │ //extract
    14 │ function name(user: User): User.Name {
-      │                             ^^^^^^^^^
+      │                            ^^^^^^^^^
    15 │ }
 
 
 ✖︎ Multiple type params is not supported
 
-  <generated>:18:29
+  <generated>:18:28
    17 │ //extract
    18 │ function name(user: User): Genric<boolean, string> {
-      │                             ^^^^^^^^^^^^^^^^^^^^^^^
+      │                            ^^^^^^^^^^^^^^^^^^^^^^^
    19 │ }

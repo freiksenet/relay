@@ -15,8 +15,9 @@ function string(user: User) {}
 ==================================== OUTPUT ===================================
 ✖︎ Expected the function return type to exist
 
-  <generated>:9:2
+  <generated>:9:1
+    7 │ 
     8 │ //extract
     9 │ function id(user: User) {}
-      │  ^^^^^^^^^^^^^^^^^^^^^^^^^
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^
    10 │

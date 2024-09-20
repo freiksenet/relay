@@ -28,7 +28,7 @@ function ignored(user: User): Array<string | null | undefined> | null | undefine
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:204:256,
+            location: <generated>:212:225,
             item: "plural_string",
         },
         return_type: TsTypeRef(
@@ -81,7 +81,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:268:348,
+            location: <generated>:276:298,
             item: "plural_optional_string",
         },
         return_type: TsTypeRef(
@@ -155,7 +155,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:360:440,
+            location: <generated>:368:390,
             item: "optional_plural_string",
         },
         return_type: TsUnionOrIntersectionType(
@@ -229,7 +229,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:452:560,
+            location: <generated>:460:491,
             item: "optional_plural_optional_string",
         },
         return_type: TsUnionOrIntersectionType(

@@ -12,7 +12,7 @@ function favorite_page(user: User, args: {id: ID}): Page {}
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:203:262,
+            location: <generated>:211:224,
             item: "favorite_page",
         },
         return_type: TsTypeRef(

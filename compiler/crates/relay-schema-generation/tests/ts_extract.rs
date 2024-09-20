@@ -10,6 +10,7 @@ use common::SourceLocationKey;
 use common::TextSource;
 use fixture_tests::Fixture;
 use graphql_cli::DiagnosticPrinter;
+use relay_schema_generation::LocationHandler;
 use relay_schema_generation::TSRelayResolverExtractor;
 use swc_common::comments::Comments;
 use swc_common::comments::SingleThreadedComments;
@@ -63,7 +64,9 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
             match comment.as_str().trim() {
                 "extract" => match node {
                     ModuleItem::Stmt(Stmt::Decl(Decl::Fn(function))) => {
-                        Some(extractor.extract_function(&function))
+                        let location_handler =
+                            LocationHandler::new(&fm, SourceLocationKey::generated());
+                        Some(extractor.extract_function(&function, &location_handler))
                     }
                     _ => None,
                 },

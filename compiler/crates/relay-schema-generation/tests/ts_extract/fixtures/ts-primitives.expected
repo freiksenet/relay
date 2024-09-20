@@ -18,7 +18,7 @@ function string(user: User): string {}
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:203:233,
+            location: <generated>:211:213,
             item: "id",
         },
         return_type: TsTypeRef(
@@ -59,7 +59,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:245:283,
+            location: <generated>:253:259,
             item: "number",
         },
         return_type: TsKeywordType(
@@ -92,7 +92,7 @@ Strong(
 Strong(
     FieldData {
         field_name: WithLocation {
-            location: <generated>:295:333,
+            location: <generated>:303:309,
             item: "string",
         },
         return_type: TsKeywordType(
